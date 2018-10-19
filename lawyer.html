@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>志愿者活动</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-badge__content{
+            top: 10px !important;
+        }
+        .avatar-uploader .el-upload {
+            border: 1px dashed #d9d9d9;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .avatar-uploader .el-upload:hover {
+            border-color: #409EFF;
+        }
+        .avatar-uploader-icon {
+            font-size: 28px;
+            color: #8c939d;
+            width: 178px;
+            height: 178px;
+            line-height: 178px;
+            text-align: center;
+        }
+        .avatar {
+            width: 178px;
+            height: 178px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="6-4" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">列表</span>
+                    <div class="wid-top-btnBox">
+                        <el-button @click="addPerson = true">添加</el-button>
+                    </div>
+                </div>
+
+                <el-table :data="AuditData" style="width: 100%;margin-bottom: 28px;">
+                    <el-table-column prop="time" label="申请时间" sortable></el-table-column>
+                    <el-table-column prop="" label="头像">
+                        <template slot-scope="scope">
+                            <img :src="scope.row.img" style="width:50px; height:50px; border-radius: 50%; float: left;" />
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="" label="姓名"></el-table-column>
+                    <el-table-column prop="" label="类型"></el-table-column>
+                    <el-table-column width="300" label="操作">
+                        <template slot-scope="scope">
+                            <el-button size="mini" type="primary" @click="detailsFn()">编辑</el-button>
+                            <el-button size="mini" type="danger" @click="deleteMedicalFn('is')">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </v-container>
+            <!-- 添加 -->
+            <el-dialog :title="dialogTitle" :visible.sync="addPerson" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form :model="addPersonForm" ref="addPersonForm" label-width="100px" class="demo-addPersonForm">
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="类型" prop="title" :rules="{required:true,message:'请选择类型',trigger:'blur'}">
+                                    <el-select v-model="addPersonForm.genre" placeholder="请选择类型">
+                                        <el-option
+                                            v-for="item in genre"
+                                            :key="item.value"
+                                            :label="item.label"
+                                            :value="item.value">
+                                        </el-option>
+                                    </el-select>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12"></el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="名字" prop="name" :rules="{required:true,message:'请填写名字',trigger:'blur'}">
+                                <el-input v-model="addPersonForm.name" placeholder="填写名字"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12"></el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="头像" prop="fileList" :rules="{required:true,message:'请填写电话',trigger:'blur'}">
+                                <el-upload
+                                    class="avatar-uploader"
+                                    action="#"
+                                    :limit="1"
+                                    :show-file-list="false"
+                                    list-type="picture"
+                                    :auto-upload="false"
+                                    :on-change="handleAvatarSuccess">
+                                    <img v-if="imageUrl" :src="imageUrl" class="avatar">
+                                    <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+                                </el-upload>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12"></el-col>
+                    </el-row>
+                    
+                    <el-row>
+                        <el-col :span="6">
+                            <el-form-item label="工龄" prop="seniority" :rules="{required:true,message:'请填写工龄',trigger:'blur'}">
+                                <el-input v-model="addPersonForm.seniority" placeholder="填写工龄"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="18"></el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="城市" prop="city" :rules="{required:true,message:'请填写城市',trigger:'blur'}">
+                                <el-cascader expand-trigger="hover" :props="props" :options="city_opt" v-model="addPersonForm.city"></el-cascader>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12"></el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="单位" prop="units" :rules="{required:true,message:'请填写单位',trigger:'blur'}">
+                                <el-input v-model="addPersonForm.units" placeholder="填写单位"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12"></el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="特长" prop="specialty" :rules="{required:true,message:'请填写特长',trigger:'blur'}">
+                                <div v-for="(item,index) in addPersonForm.specialty" style="width:500px;">
+                                    <el-input style="width:300px; margin-bottom: 3px;" v-model="addPersonForm.specialty[index]" placeholder="填写特长"></el-input>
+                                    <el-button type="danger" icon="el-icon-delete" circle @click="deleteSpecialtyFn(index)"></el-button>
+                                </div>
+                                
+                                <el-button type="primary" @click="addSpecialtyFn">添加特长</el-button>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12"></el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="18">
+                            <el-form-item label="简介" prop="about" :rules="{required:true,message:'请填写简介',trigger:'blur'}">
+                                <el-input
+                                    type="textarea"
+                                    :rows="6"
+                                    placeholder="请输入简介"
+                                    v-model="textarea">
+                                </el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="6"></el-col>
+                    </el-row>
+                    <el-form-item>
+                        <el-button type="primary" @click="onSubmit">提交</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>    
+           
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/ckeditor/ckeditor.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                dialogTitle:'添加',
+                breadcrumb:['民生','律师&心理咨询'],
+                addPerson: false,
+                activeName: 'first',
+                AuditData:[{
+                    'time': '2018-1-1',
+                    'img': './assets/img/bg2.jpg',
+                    'color': '#000'
+                },{
+                    'time': '2018-1-1',
+                    'img': './assets/img/bg2.jpg',
+                    'color': '#FF00FF'
+                }],
+                addPersonForm:{
+                    'genre': '',
+                    'name': '',
+                    'raw': '',
+                    'seniority': '',
+                    'city':'',
+                    'units': '',
+                    'specialty': ['唱歌', '跳舞'],
+                    'about':''
+                },
+                genre:[{
+                    'value': 0,
+                    'label': 'ss'
+                },{
+                    'value': 1,
+                    'label': 'ss'
+                }],
+                imageUrl:'',
+                textarea:'',
+                // 城市列表
+                city_opt: [],
+                props: {
+                    value: 'id',
+                    children: '_child',
+                    label: 'label'
+                },
+                
+            },
+            created:function(){
+                var that = this;
+                that.getCityList();
+            },
+
+            filters:{
+
+            },
+            methods:{ 
+                deleteSpecialtyFn:function(index){
+                    this.addPersonForm.specialty.splice(index, 1);
+                },
+                addSpecialtyFn:function(){
+                    this.addPersonForm.specialty.push('');
+                },
+                handleAvatarSuccess(res, file) {
+                    console.log(file)
+                    this.imageUrl = file[0].url;
+                },
+                onSubmit:function(){
+
+                },
+                // 请求城市列表
+                getCityList:function(){
+                    var that = this;
+                    api.post('/admin/users/getRegionWorld',{},function(res){
+                        if (res.data.code == 1005) {
+                            that.city_opt = res.data.data[239]._child;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                }                
+            }
+        });
+    </script>
+</body>
+</html>

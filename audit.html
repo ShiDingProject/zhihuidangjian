@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>党员审核</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .bigImg{
+            position: fixed;
+            z-index: 3000;
+            top: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.7);
+            width: 100%;
+            height: 100%;
+        }
+        .bigImg>img{
+            height: 100%;
+            display: block;
+            position: absolute;
+            left: 0;
+            right: 0;
+            margin: auto;
+            z-index: 3000;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <v-container href_now="3-3" :breadcrumb="breadcrumb">
+            <div class="inner-title">
+                <span class="inner-title-span">党员列表</span>
+            </div>
+            <div class="page-content">
+                <el-tabs type="card">
+                    <el-tab-pane label="入党申请表">
+                        <el-table :data="tableData" style="width: 100%;margin-bottom: 28px;">
+                            <el-table-column prop="application_pub_time" label="申请时间" sortable></el-table-column>
+                            <el-table-column prop="user.user_name" label="姓名"></el-table-column>
+                            <el-table-column prop="organization_name" label="申请组织"></el-table-column>
+                            <el-table-column prop="intro1" label="介绍人1">
+                                <template slot-scope="scope">
+                                    <p>{{scope.row.application_introducer_one_name}}</p>
+                                    <p>{{scope.row.application_introducer_one_tel}}</p>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="intro2" label="介绍人2">
+                                <template slot-scope="scope">
+                                    <p>{{scope.row.application_introducer_two_name}}</p>
+                                    <p>{{scope.row.application_introducer_two_tel}}</p>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="application_isform" label="入党志愿书" :formatter="isform"></el-table-column>
+                            <el-table-column prop="application_isautobiography" label="个人自传" :formatter="isautobiography"></el-table-column>
+                            <el-table-column label="资料">
+                                <template slot-scope="scope">
+                                    <el-button type="text" @click="checkData(scope.row)">查看</el-button>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="state" label="状态" sortable :formatter="isstate"></el-table-column>
+                            <el-table-column width="150" label="操作">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" type="info" :disabled="scope.row.state === 0 ? false:true" @click="checkApply(scope.row,1)">同意</el-button>
+                                    <el-button size="mini" type="danger" :disabled="scope.row.state === 0 ? false:true" @click="checkApply(scope.row,2)">拒绝</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                    <el-tab-pane label="党员注册表">
+                        <el-table :data="tableData2" style="width: 100%;margin-bottom: 28px;">
+                            <el-table-column type="expand">
+                                <template slot-scope="props">
+                                    <el-form label-position="right">
+                                        <el-form-item label="毕业院校">
+                                            <p>{{props.row.party_graduated}}</p>
+                                        </el-form-item>
+                                        <el-form-item label="学历">
+                                            <p>{{props.row.party_education|partyEducation}}</p>
+                                        </el-form-item>
+                                        <el-form-item label="专业">
+                                            <p>{{props.row.party_major}}</p>
+                                        </el-form-item>
+                                        <el-form-item label="籍贯">
+                                            <p>{{props.row.party_native_place}}</p>
+                                        </el-form-item>
+                                        <el-form-item label="微信号">
+                                            <p>{{props.row.party_wechat}}</p>
+                                        </el-form-item>
+                                        <el-form-item label="QQ号">
+                                            <p>{{props.row.party_qq}}</p>
+                                        </el-form-item>
+                                        <el-form-item label="正式入党时间">
+                                            <p>{{props.row.party_join_time}}</p>
+                                        </el-form-item>
+                                    </el-form>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="party_pub_time" label="提交时间" sortable></el-table-column>
+                            <el-table-column prop="head_img" label="头像">
+                                <template slot-scope="scope">
+                                    <img :src="scope.row.party_picture" style="width:50px; height:50px" />            
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="user.user_name" label="姓名"></el-table-column>
+                            <el-table-column prop="organization_name" label="所属党组织"></el-table-column>
+                            <el-table-column prop="party_state" label="党员状态" :formatter="partyState"></el-table-column>
+                            <el-table-column prop="party_duty" label="职务"></el-table-column>
+                            <el-table-column prop="party_apply_time" label="申请入党时间"></el-table-column>
+                            <el-table-column prop="party_auditing_time" label="状态" :formatter="auditing"></el-table-column>
+                            <el-table-column width="150" label="操作">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" type="info" v-if="scope.row.party_auditing_time ===0" @click="checkRegistered(scope.row,1)">同意</el-button>
+                                    <el-button size="mini" type="danger" v-if="scope.row.party_auditing_time ===0 || scope.row.party_auditing_time ===2" :disabled="scope.row.party_auditing_time ===2" @click="checkRegistered(scope.row,2)">拒绝</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                </el-tabs>
+            </div>
+        </v-container>
+        <el-dialog title="资料" :visible.sync="dialogVisible" width="50%">
+            <el-row :gutter="10">
+                <el-col :span="6" v-for="(item,index) of application_picture" :key="index">
+                    <img :src="item" alt="" style="width: 100%; cursor:pointer;"  @click="preview('open',item)">
+                </el-col>
+            </el-row>
+        </el-dialog>
+        <!-- 预览大图 -->
+        <div class="bigImg" v-show="innerVisible" @click.stop="preview('close')">
+            <img @click.stop="child" :src="imgUrl">
+        </div>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['党建','党员审核'],
+                // 入党申请表
+                tableData:[],
+                dialogVisible:false,
+                // 党员注册表
+                tableData2:[],
+                currentPage1:1,
+                currentPage2:2,
+                application_picture:[],
+                innerVisible:false,
+                imgUrl:''
+            },
+            created:function(){
+                var that = this;
+                that.getApplicationMembershipsList();
+                that.getPartymembersList();
+            },
+            methods:{
+                // 预览图片
+                child:function(){
+
+                },
+                preview:function(type,item){
+                    var that = this;
+                    if(type === 'open'){
+                        that.imgUrl = item;
+                        that.innerVisible = true;
+                    }else if(type === 'close'){
+                        that.innerVisible = false;
+                        that.imgUrl = '';
+                    }
+                },
+                // 审核
+                checkApply:function(data,check){
+                    var that = this;
+                    var checkName = '';
+                    if(check === 1){
+                        checkName = '同意';
+                    }else{
+                        checkName = '拒绝';
+                    }
+                    that.$confirm('此操作'+checkName+'该审核, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        api.post('/admin/ApplicationMemberships/check',{
+                            'user_id':data.user_id,
+                            'check_type':check
+                        },function(res){   
+                            if (res.data.code == 1001) {
+                                that.getApplicationMembershipsList();
+                                that.$message({type: 'warning',message: '已'+checkName});
+                            }else{
+                                that.$message({type: 'warning',message: res.data.msg});
+                            }
+                        },function(err){
+                            that.$message({type: 'warning',message: err.message});
+                        });
+                    }).catch(() => {
+                        that.$message({type: 'info',message: '已取消'+checkName});          
+                    });
+                    
+                },
+                checkRegistered:function(data,check){
+                    var that = this;
+                    var checkName = '';
+                    if(check === 1){
+                        checkName = '同意';
+                    }else{
+                        checkName = '拒绝';
+                    }
+                    that.$confirm('此操作'+checkName+'该审核, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        api.post('/admin/partymembers/check',{
+                            'user_id':data.user_id,
+                            'check_type':check
+                        },function(res){   
+                            if (res.data.code == 1001) {
+                                that.getPartymembersList();
+                                that.$message({type: 'warning',message: '已'+checkName});
+                            }else{
+                                that.$message({type: 'warning',message: res.data.msg});
+                            }
+                        },function(err){
+                            that.$message({type: 'warning',message: err.message});
+                        });
+                    }).catch(() => {
+                        that.$message({type: 'info',message: '已取消'+checkName});          
+                    });
+                },
+                // 入党申请表
+                getApplicationMembershipsList:function(){
+                    var that = this;
+                    api.post('/admin/ApplicationMemberships/list',{},function(res){   
+                        if (res.data.code == 1005) {
+                            that.tableData = res.data.data;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 党员注册表
+                getPartymembersList:function(){
+                    var that = this;
+                    api.post('/admin/partymembers/checkList',{},function(res){   
+                        if (res.data.code == 1005) {
+                            that.tableData2 = res.data.data;
+                            console.log(res.data.data);
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                checkData:function(data){
+                    var that = this;
+                    console.log(data);
+                    that.application_picture = data.application_picture;
+                    that.dialogVisible = true;
+                },
+                partyState:function(data){
+                    switch(data.party_state){
+                        case 1:
+                            return '正式党员';
+                            break;
+                        case 2:
+                            return '预备党员';
+                            break;
+                        case 3:
+                            return '入党积极分子';
+                            break;
+                    };
+                },
+                auditing:function(data){
+                    switch(data.party_auditing_time){
+                        case 0:
+                            return '未审核';
+                            break;
+                        case 2:
+                            return '未通过';
+                            break;
+                    };
+                },
+                isform:function(data){
+                    switch(data.application_isform){
+                        case 0:
+                            return '否';
+                            break;
+                        case 1:
+                            return '是';
+                            break;
+                    };
+                },
+                isautobiography:function(data){
+                    switch(data.application_isautobiography){
+                        case 0:
+                            return '否';
+                            break;
+                        case 1:
+                            return '是';
+                            break;
+                    };
+                },
+                isstate:function(data){
+                    switch(data.state){
+                        case 0:
+                            return '待审核';
+                            break;
+                        case 1:
+                            return '已通过';
+                            break;
+                        case 2:
+                            return '已拒绝';
+                            break;
+                    };
+                }
+            },
+            filters:{
+                partyState:function(value){
+                    switch(value){
+                        case 1:
+                            return '正式党员';
+                            break;
+                        case 2:
+                            return '预备党员';
+                            break;
+                        case 3:
+                            return '入党积极分子';
+                            break;
+                    };
+                },
+                userSex:function(value){
+                    switch(value){
+                        case 1:
+                            return '男';
+                            break;
+                        case 0:
+                            return '女';
+                            break;
+                    };
+                },
+                partyEducation:function(value){
+                    switch(value){
+                        case 0:
+                            return '其他';
+                            break;
+                        case 1:
+                            return '小学';
+                            break;  
+                        case 2:
+                            return '初中';
+                            break;
+                        case 3:
+                            return '高中';
+                            break;
+                        case 4:
+                            return '中专';
+                            break;
+                        case 5:
+                            return '大专';
+                            break;
+                        case 6:
+                            return '本科';
+                            break;
+                        case 7:
+                            return '研究生';
+                            break;
+                        case 8:
+                            return '硕士';
+                            break;
+                        case 9:
+                            return '博士';
+                            break;
+                    };
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>文章详情</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1">
+    <link rel="stylesheet" href="assets/css/common/normalize.css">
+    <style>
+        @media screen and (min-width: 320px) {
+            html {font-size: 16px;}
+        }
+        @media screen and (min-width: 360px) {
+            html {font-size: 20px;}
+        }
+        * {-webkit-overflow-scrolling: touch;}
+        html{height: 100%;-webkit-tap-highlight-color: transparent;font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif,'PingFangSC-Regular';}
+        body{height: 100%;-webkit-tap-highlight-color: transparent;overflow: hidden;}
+        a{text-decoration: none;-webkit-tap-highlight-color: transparent;}
+        p{margin: 0;}
+        i{font-style: normal;}
+        h3{margin: 0;padding: 0;font-weight: normal;font-stretch: normal;}
+        ul,li{margin: 0;padding: 0;}
+        #main{height: 100%;overflow: auto;}
+        .title{font-size:22px;font-weight:bold;color:rgba(51,51,51,1);line-height:30px;padding: 20px 15px;}
+        .label{padding: 0 15px 20px;}
+        .span1{display: inline-block;border:1px solid rgba(255,61,52,1);border-radius:6px;font-size:10px;font-weight:500;color:rgba(255,61,52,1);padding: 4px 6px;}
+        .span2{display: inline-block;height: 23px;line-height: 23px;vertical-align: middle;font-size:13px;font-weight:500;color:rgba(153,153,153,1);margin-left: 10px;}
+        .content{padding: 0 15px 20px;}
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template v-if="show">
+            <p class="title">{{detail.article_title}}</p>
+            <p class="label">
+                <span class="span1">{{detail.category_id | category}}</span><span class="span2">{{detail.article_update_time}}</span>
+            </p>
+            <div class="content" v-html="detail.article_content"></div>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                detail:{},
+                category:[],
+                show:false,
+            },
+            filters:{
+                category:function(val){
+                    console.log(val);
+                    if (vm != undefined) {
+                        console.log(vm.$data);
+                        for (var i = 0; i < vm.$data.category.length; i++) {
+                            if (vm.category[i].id == val) {
+                                return vm.category[i].category_name
+                            }
+                        }
+                    }
+                }
+            },
+            created:function(){
+                var that = this;
+                that.getCategory();
+            },
+            mounted:function(){
+                var that = this;
+                that.getDetail(that.getQueryString('id'));
+            },
+            methods:{
+                getDetail:function(id){
+                    var that = this;
+                    api.post('/api/index/article',{
+                        id:id
+                    },function(res){
+                        console.log(res);
+                        that.detail = res.data.data;
+                        that.show = true;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                getCategory:function(){
+                    var that = this;
+                    api.post('/api/index/getCategory',{
+
+                    },function(res){
+                        console.log(res);
+                        that.category = res.data.data;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                getQueryString:function(name){
+                    var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+                    var r = window.location.search.substr(1).match(reg);
+                    if (r != null) {
+                        return unescape(r[2]);
+                    }else{
+                        return null;
+                    } 
+                }
+            }
+        });
+    </script>
+</body>
+</html>

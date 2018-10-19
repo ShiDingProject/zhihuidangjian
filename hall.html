@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>服务大厅</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-badge__content{
+            top: 10px !important;
+        }
+        .line{
+            width: 100%;
+            min-height: 300px;
+            border-top: 1px #B0BCC8 solid;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="5-2" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">服务大厅</span>
+                    <div class="wid-top-btnBox">
+                            <el-button @click="dialogOpen('showIntroduce')">修改介绍</el-button>
+                            <el-button @click="dialogOpen('showService')">服务管理</el-button>
+                    </div>
+                </div>
+                <el-tabs v-model="activeName1" @tab-click="handleClick">
+
+                    <el-tab-pane label="计划生育" name="first">
+                        <el-tabs v-model="activeName2" type="card" @tab-click="handleClick">
+
+                            <el-tab-pane label="在线咨询" name="first">
+                                <el-badge :value="12" class="item" slot="label">在线咨询&nbsp;&nbsp;&nbsp;&nbsp;</el-badge>
+                                <el-table :data="onlineDatas" style="width: 100%">
+                                    <el-table-column prop="type" label="服务类型" width="180" sortable>
+                                        <template slot-scope="scope">
+                                            <el-tag size="small" color="#000" style="color: #FFF">{{ scope.row.type }}</el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="date" label="时间" width="180" sortable></el-table-column>
+                                    <el-table-column prop="problem" label="问题" width="400"></el-table-column>
+                                    <el-table-column prop="consultant" label="咨询人"></el-table-column>
+                                    <el-table-column prop="status" label="状态" sortable></el-table-column> 
+                                    <el-table-column label="操作">
+                                        <template slot-scope="scope">
+                                            <el-button type="text">详情</el-button>
+                                            <el-button type="text" @click=deleteOnline()>删除</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+
+                            <el-tab-pane label="预约服务" name="second">
+                                <el-badge :value="0" class="item" slot="label" style="z-index: 100">预约服务&nbsp;&nbsp;&nbsp;&nbsp;</el-badge>
+                                <el-table :data="onlineDatas" style="width: 100%">
+                                    <el-table-column prop="type" label="服务类型" width="180" sortable>
+                                        <template slot-scope="scope">
+                                            <el-tag size="small" color="#000" style="color: #FFF">{{ scope.row.type }}</el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="date" label="时间" width="180" sortable></el-table-column>
+                                    <el-table-column prop="problem" label="预约服务" width="400"></el-table-column>
+                                    <el-table-column prop="consultant" label="预约时间"></el-table-column>
+                                    <el-table-column prop="consultant" label="咨询人"></el-table-column>
+                                    <el-table-column prop="status" label="状态" sortable></el-table-column> 
+                                    <el-table-column label="操作">
+                                        <template slot-scope="scope">
+                                            <el-button type="text">详情</el-button>
+                                            <el-button type="text" @click=deleteOnline()>删除</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+
+                            <el-tab-pane label="服务评价" name="third">
+                                    <el-badge :value="12" class="item" slot="label" style="z-index: 100">服务评价&nbsp;&nbsp;&nbsp;&nbsp;</el-badge>
+                                    <el-table :data="onlineDatas" style="width: 100%">
+                                        <el-table-column prop="date" label="时间" width="180" sortable></el-table-column>
+                                        <el-table-column prop="consultant" label="姓名"></el-table-column>
+                                        <el-table-column prop="problem" label="分值" width="400"></el-table-column>
+                                        <el-table-column prop="status" label="评价内容" sortable></el-table-column> 
+                                        <el-table-column label="操作">
+                                            <template slot-scope="scope">
+                                                <el-button type="text" @click=deleteOnline()>删除</el-button>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </el-tab-pane>
+                    
+                    <el-tab-pane label="医疗保险" name="second">医疗保险</el-tab-pane>
+                    <el-tab-pane label="养老保险" name="third">养老保险</el-tab-pane>
+                    <el-tab-pane label="民政" name="fourth">民政</el-tab-pane>
+                    <el-tab-pane label="残联" name="five">残联</el-tab-pane>
+                    <el-tab-pane label="武装" name="six">武装</el-tab-pane>
+                </el-tabs>
+            </v-container>
+
+            <!-- 服务管理 -->
+            <el-dialog title="服务管理" :visible.sync="showService">
+                <el-button type="primary" @click="dialogOpen('addService')">添加服务</el-button>
+                <div class="line">
+                    <div v-for="item in serviceData" style="width: 33.3%; float: left; margin-top: 30px">
+                        <el-tag type="success">{{item.name}}</el-tag>
+                        <el-button size="small" type="primary" icon="el-icon-edit-outline" circle></el-button>
+                        <el-button size="small" type="danger" icon="el-icon-delete" circle></el-button>
+                    </div>
+                </div>
+            </el-dialog>
+
+            <!-- 添加服务 -->
+            <el-dialog title="添加服务" :visible.sync="addService">
+                <el-form :model="serviceForm" :rules="serviceRules" ref="serviceForm" label-width="100px" class="demo-serviceForm">
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="服务名称" prop="name">
+                                <el-input v-model="serviceForm.name" placeholder="填写服务名称..."></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-form-item label="标签颜色" prop="color">
+                                <el-color-picker v-model="serviceForm.color"></el-color-picker>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="受理机关" prop="organ">
+                                <el-input v-model="serviceForm.organ" placeholder="填写受理机关"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="服务热线" prop="hotline">
+                                <el-input v-model="serviceForm.hotline" placeholder="填写受理机关"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+                   
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="办公时间" prop="time">
+                                <el-date-picker v-model="serviceForm.time" type="date" placeholder="选择日期"></el-date-picker>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="上传附件" prop="attachment">
+                                <el-upload
+                                    class="upload-demo"
+                                    action="https://jsonplaceholder.typicode.com/posts/"
+                                    multiple
+                                    :limit="3"
+                                    :file-list="fileList">
+                                    <el-button size="small" type="primary" v-model="serviceForm.attachment">点击上传</el-button>
+                                </el-upload>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="24">
+                            <el-form-item label="办理流程＆准备材料" prop="time">
+                                    <el-input
+                                    type="textarea"
+                                    :rows="6"
+                                    placeholder="请输入内容"
+                                    v-model="textarea">
+                                  </el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+
+                    <el-form-item>
+                        <el-button type="primary" @click="onSubmit">提交</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>
+
+            <!-- 修改介绍 -->
+            <el-dialog title="修改介绍" :visible.sync="showIntroduce">
+                <h3 style="text-align: center; margin-bottom: 30px;">计划生育</h3>
+                <el-form :model="introduceForm" :rules="introduceRules" ref="introduceForm" label-width="100px" class="demo-introduceForm">
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="主图" prop="img">
+                                <el-upload
+                                    class="upload-demo"
+                                    action="https://jsonplaceholder.typicode.com/posts/"
+                                    multiple
+                                    :limit="3"
+                                    :file-list="fileList">
+                                    <el-button size="small" type="primary">点击上传</el-button>
+                                </el-upload>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="标题" prop="title">
+                                <el-input v-model="introduceForm.title" placeholder="填写受理机关"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="地址" prop="address">
+                                <el-input v-model="introduceForm.address" placeholder="填写受理机关"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="办公时间" prop="time">
+                                <el-input v-model="introduceForm.time" placeholder="填写受理机关"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-form-item>
+                        <el-button type="primary" @click="submitForm('ruleForm')">保存</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>
+
+            <!-- 咨询详情 -->
+            <el-dialog title="详情" :visible.sync="showDetails">
+
+            </el-dialog>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['政务', '服务大厅'],
+                activeName1: 'first',
+                activeName2: 'first',
+                addService: false,
+                showService: false,
+                showIntroduce: false,
+                showDetails: false,
+                // 在线咨询数据
+                onlineDatas: [
+                    {
+                        'type': '再生育服务证',
+                        'date': '2018-09-01',
+                        'problem': 'ksjdfhskjdfhskjdfhksjdfhskdjfh',
+                        'consultant': '小李',
+                        'status': '未回复'
+                    }
+
+                ],
+                // 预约服务
+                reservationServiceData:[
+
+                ],
+                serviceData: [
+                    {
+                        name: 'aaaaa',
+                    },
+                    {
+                        name: 'aaaaa',
+                    },
+                    {
+                        name: 'aaaaa',
+                    }
+                ],
+                // 添加服务
+                serviceForm: {
+                    name: '',
+                    color: null,
+                    organ:'',
+                    hotline:'',
+                    time: '',
+                    attachment: '',
+                    textarea: 'nsdbvfsnbdfvnsbdfvsndbfv'
+                },
+                serviceRules: {
+                    name: [
+                        { required: true, message: '请输入服务名称', trigger: 'blur' },
+                        { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
+                    ],
+                    color: [
+                        { required: true, message: '请选择颜色', trigger: 'blur' }
+                    ],
+                    organ: [
+                        { required: true, message: '请输入受理机关', trigger: 'blur' }
+                    ],
+                    hotline: [
+                        { required: true, message: '请输入受理机关', trigger: 'blur' }
+                    ],
+                    time: [
+                        { required: true, message: '请输入受理机关', trigger: 'blur' }
+                    ],
+                    attachment: [
+                        { required: true, message: '请输入受理机关', trigger: 'blur' }
+                    ],
+                    textarea: [
+                        { required: true, message: '请输入受理机关', trigger: 'blur' }
+                    ]
+                },
+                // 修改介绍
+                introduceForm: {
+                    img: '',
+                    title: '',
+                    address: '',
+                    time: ''
+                },
+                introduceRules:{
+                    img: [
+                        { required: true, message: '请选择颜色', trigger: 'blur' }
+                    ],
+                    title: [
+                        { required: true, message: '请选择颜色', trigger: 'blur' }
+                    ],
+                    address: [
+                        { required: true, message: '请选择颜色', trigger: 'blur' }
+                    ],
+                    time: [
+                        { required: true, message: '请选择颜色', trigger: 'blur' }
+                    ]
+                },
+                fileList:[],
+                textarea:'kajsdhaksjh'
+            },
+            methods:{
+                handleClick(tab, event) {
+                    console.log(tab, event);
+                },
+                deleteOnline(){
+                    this.$confirm('此操作将永久删除该问题, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                    }).then(function(){
+                        this.$message({
+                            type: 'success',
+                            message: '删除成功!'
+                        });
+                    }).catch(function(){
+                        this.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });          
+                    });
+                },
+                dialogOpen:function(type){
+                    var that = this;
+                    switch (type) {
+                        case 'addService':
+                            that.addService = true;
+                            break;
+                        case 'showService':
+                            that.showService = true;
+                            break;
+                        case 'showIntroduce':
+                            that.showIntroduce = true;
+                            break;
+                        case 'check':
+                            that.check = true;
+                            break;
+                        default:
+                            break;
+                    }
+                },
+                onSubmit:function(){
+
+                }
+            }
+        });
+    </script>
+</body>
+</html>

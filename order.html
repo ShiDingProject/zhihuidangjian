@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>订单缴费</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .demo-table-expand {
+            font-size: 0;
+        }
+        .demo-table-expand label {
+            width: 90px;
+            color: #99a9bf;
+        }
+        .demo-table-expand .el-form-item {
+            margin-right: 0;
+            margin-bottom: 0;
+            width: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="5-4" :breadcrumb="breadcrumb">
+                <div class="page-content">
+                    <el-tabs type="card">
+                        <el-tab-pane label="医疗缴费">
+                            <el-table :data="medicalData" style="width: 100%;margin-bottom: 28px;">
+                                <el-table-column type="expand">
+                                    <template slot-scope="props">
+                                        <el-form label-position="left" inline class="demo-table-expand">
+                                        <el-form-item label="村社区">
+                                            <span>777777777</span>
+                                        </el-form-item>
+                                        <el-form-item label="监护人姓名">
+                                            <span>777777777</span>
+                                        </el-form-item>
+                                        <el-form-item label="人员类别">
+                                            <span>{{ props.row.id }}</span>
+                                        </el-form-item>
+                                        <el-form-item label="身份证">
+                                            <span>{{ props.row.shopId }}</span>
+                                        </el-form-item>
+                                        <el-form-item label="参保日期">
+                                            <span>{{ props.row.category }}</span>
+                                        </el-form-item>
+                                        <el-form-item label="与监护人关系">
+                                            <span>{{ props.row.address }}</span>
+                                        </el-form-item>
+                                        </el-form>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="time" label="申请时间" sortable></el-table-column>
+                                <el-table-column prop="" label="订单号"></el-table-column>
+                                <el-table-column prop="" label="姓名" sortable></el-table-column>
+                                <el-table-column prop="" label="电话"></el-table-column>
+                                <el-table-column prop="" label="缴费金额"></el-table-column>
+                                <el-table-column prop="" label="缴费方式" sortable>
+                                    <template slot-scope="scope">
+                                        <img :src="scope.row.party_picture" style="width:50px; height:50px" />            
+                                    </template>
+                                </el-table-column>
+                                <el-table-column width="150" label="操作">
+                                    <template slot-scope="scope">
+                                        <el-button size="mini" type="danger" @click="deleteMedicalFn('is')">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </el-tab-pane>
+                        <el-tab-pane label="养老医疗">
+                            <el-table :data="pensionData" style="width: 100%;margin-bottom: 28px;">
+                                <el-table-column prop="time" label="提交时间" sortable></el-table-column>
+                                <el-table-column prop="" label="订单号"></el-table-column>
+                                <el-table-column prop="" label="姓名" sortable></el-table-column>
+                                <el-table-column prop="" label="电话" ></el-table-column>
+                                <el-table-column prop="" label="参保身份"></el-table-column>
+                                <el-table-column prop="" label="居委会名称"></el-table-column>
+                                <el-table-column prop="" label="缴费金额"></el-table-column>
+                                <el-table-column prop="" label="缴费方式"></el-table-column>
+                                <el-table-column width="150" label="操作">
+                                    <template slot-scope="scope">
+                                        <el-button size="mini" type="danger" @click="deletePensionFn('is')">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+            </v-container>
+
+
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/ckeditor/ckeditor.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['政务','订单缴费'],
+                medicalData:[{
+                    'time': '2018-1-1'
+                }], 
+                pensionData:[{
+                    'time': '2018-1-1'
+                }]
+            },
+            created:function(){
+                var that = this;
+                console.log('aa')
+            },
+
+            filters:{
+
+            },
+            methods:{  
+                deleteMedicalFn:function(id){
+                    var that = this;
+                    that.$confirm('此操作将删除, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(function(){
+                        that.$message({
+                            type: 'success',
+                            message: '删除成功!'
+                        });
+                    }).catch(function(){
+                        that.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });          
+                    });
+                },
+                deletePensionFn:function(id){
+                    var that = this;
+                    that.$confirm('此操作将删除, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(function(){
+                        that.$message({
+                            type: 'success',
+                            message: '删除成功!'
+                        });
+                    }).catch(function(){
+                        that.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });          
+                    });
+                }
+                
+            }
+        });
+    </script>
+</body>
+</html>

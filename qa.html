@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>有问必答</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style type="text/css">
+        .btn-span{
+            padding:4px 10px;font-size:12px;border-radius: 3px;color: #fff;
+        }
+        .el-table--border::after, .el-table--group::after, .el-table::before { content: ''; position: absolute; background-color:transparent; z-index: 1;}
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="5-3" :breadcrumb="breadcrumb">
+                <div class="inner">
+                    <div class="inner-title">
+                        <span class="inner-title-span">问答列表</span>
+                        <div class="wid-top-btnBox">
+                            <el-button @click="dialogFormVisible=true">类别管理</el-button>
+                        </div>
+                    </div>
+                    <div class="page-content">
+                        <el-table :data="question_list" style="width: 100%;margin-bottom: 28px;">
+                            <el-table-column label="类型" sortable>
+                                <template slot-scope="scope">
+                                    <span class="btn-span" :style="{backgroundColor:scope.row.type_bg}">{{ scope.row.type_con }}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="date" label="时间" sortable></el-table-column>
+                            <el-table-column prop="question" label="问题"></el-table-column>
+                            <el-table-column prop="person" label="咨询人"></el-table-column>
+                            <el-table-column prop="status" label="状态" sortable>
+                                <template slot-scope="scope">
+                                    <span>{{ question_list_status[scope.row.status] }}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column width="200" label="操作">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" type="info" @click="dialogFormVisiblerOpen">详情</el-button>
+                                    <el-button size="mini" type="danger">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <el-pagination background :current-page.sync="search_form.currentPage" :page-size="search_form.page_limit" layout="prev, pager, next, jumper" :total="total_page"></el-pagination>
+                    </div>
+                </div>
+            </v-container>
+            <el-dialog title="类别管理" :visible.sync="dialogFormVisible" width="60%" top="80px" style="min-width: 1000px;" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-button style="background: #2a3345;color: #fff;margin-bottom: 20px;" @click="innerVisibleOpen()">添加服务</el-button>
+                <el-table :data="type_list" style="width: 100%;margin-bottom: 28px;max-height: 400px;overflow-y: auto;">
+                    <el-table-column label="背景色">
+                        <template slot-scope="scope">
+                            <span class="btn-span" :style="{backgroundColor:scope.row.type_bg}">{{ scope.row.type_bg }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="内容">
+                        <template slot-scope="scope">
+                            <span>{{ scope.row.type_con }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column width="200" label="操作">
+                        <template slot-scope="scope">
+                            <el-button size="mini" type="info">编辑</el-button>
+                            <el-button size="mini" type="danger">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <!-- 嵌套 dialog  开始 -->
+                <el-dialog width="40%" style="min-width: 800px;" title="添加服务" :visible.sync="innerVisible" append-to-body>
+                    <el-form :model="dialog_form0" ref="dialog_form0" label-width="120px">
+                        <el-form-item label="服务名称：" prop="service_name" :rules="[{required:true,message:'请输入服务名称',trigger:'blur'},{min:1,max:10,message:'字数限时不超过10字',trigger:'blur'}]">
+                            <el-input style="width: 80%;" v-model="dialog_form0.service_name" auto-complete="off" placeholder="请填写服务名称. . ."></el-input>
+                        </el-form-item>
+                        <el-form-item label="标签颜色：" prop="service_bg" :rules="{required:true,message:'请输入标签颜色',trigger:'blur'}">
+                            <el-color-picker v-model="dialog_form0.service_bg"></el-color-picker>
+                        </el-form-item>
+                    </el-form>
+                    <div slot="footer" class="dialog-footer">
+                        <el-button @click="innerVisibleOff()">取 消</el-button>
+                        <el-button type="primary" @click="submitDialogForm0()">确 定</el-button>
+                    </div>
+                </el-dialog>
+                <!-- 嵌套 dialog  结束 -->
+
+            </el-dialog>
+
+
+            <el-dialog title="详情" :visible.sync="dialogFormVisibler" width="60%" top="80px" style="min-width: 1000px;" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-row>
+                  <el-col :span="24" style="padding:5px;">
+                    <el-card shadow="hover">
+                        <el-row>
+                            <el-col style="padding:10px;line-height: 24px;" :span="12">姓名：尼古拉斯*赵四</el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="12">日期：2018/10/13 16:24:55</el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="12">电话：15611111111</el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="12">邮箱：1216810362@qq.com</el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="24"><hr style="border:none;height:1px;background: #e0e0e0;" /></el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="24"><i class="el-icon-document"></i> 我生了36个孩子了，政府不让我生了。我改怎么办？</el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="24">我有12个男孩，24个女孩。现在还想生12个男孩。为什么国家不让我们生了呢，我们还年轻，经历还很旺盛。求求各位机关，各位领导通融一下吧。这是我们夫妻两个人生中最大的追求了。请成全我们让我们为国家造福，我们发誓，会让我们的孩子都当兵，成为解放军，自立成一个排。或者一个连队。</el-col>
+                            <el-col style="padding:10px;line-height: 24px;" :span="24">
+                               <img src="assets/img/bg1.jpg" style="width:210px;height:140px; display: inline-block;margin-right:10px;">
+                               <img src="assets/img/bg1.jpg" style="width:210px;height:140px; display: inline-block;margin-right:10px;">
+                               <img src="assets/img/bg1.jpg" style="width:210px;height:140px; display: inline-block;margin-right:10px;">
+                               <img src="assets/img/bg1.jpg" style="width:210px;height:140px; display: inline-block;margin-right:10px;">
+                            </el-col>
+                        </el-row>
+                    </el-card>
+                  </el-col>
+                </el-row>
+
+                 <el-button style="background: #2a3345;color: #fff;margin:20px 5px;" @click="addAnswer()" icon="el-icon-plus">回复咨询</el-button>
+
+
+                 <el-form :model="dialog_form1" ref="dialog_form1" label-width="5px">
+                        <el-form-item  v-for="(item,index) in dialog_form1.answer_list"  :key="index"  :prop="'answer_list[' + index + '].value'" :rules="{required:true,message:'请输入该选项内容',trigger:'blur'}">
+                            <el-row>
+                                <el-col :span="22">
+                                    <el-input v-model="item.value" placeholder="请输入该选项内容" type="textarea"></el-input>
+                                </el-col>
+                                <el-col :span="1" style="text-align: right;">
+                                    <i class="el-icon-delete" style="font-size: 18px;cursor: pointer;" @click="removeAnswer(index)"></i>
+                                </el-col>
+                            </el-row>
+                        </el-form-item>
+                </el-form>
+                <div v-if="dialog_form1.answer_list.length>0" slot="footer" class="dialog-footer" style="text-align:center;">
+                    <el-button type="primary" style="padding: 12px 40px;">提 交</el-button>
+                </div>
+
+            </el-dialog>
+
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['政务','有问必答'],
+                search_form: {
+                    type:'',
+                    page_limit:10,
+                    currentPage:1,
+                },
+                total_page:0,
+                question_list:[
+                    {
+                        id:'0',
+                        type_con:'三会一课',
+                        type_bg:'#2a3345',
+                        date:'2018/10/08 16:00',
+                        question:'研究院统计红太阳集团与体育教育图，惹他个人投入问题，个服务个人供热隔热管',
+                        person:'王有才',
+                        status:1
+                    },
+                    {
+                        id:'1',
+                        type_con:'党建活动',
+                        type_bg:'#67C23A',
+                        date:'2018/10/11 12:00',
+                        question:'惹他个人投入问题',
+                        person:'武则天',
+                        status:1
+                    },
+                    {
+                        id:'2',
+                        type_con:'计划生育',
+                        type_bg:'#F56C6C',
+                        date:'2018/12/18 17:50',
+                        question:'他如何如何',
+                        person:'度月娘',
+                        status:0
+                    },
+                    {
+                        id:'3',
+                        type_con:'阅读理解',
+                        type_bg:'#909399',
+                        date:'2018/09/17 16:40',
+                        question:'研究院统计红太阳脱氧核糖回头研究投影机',
+                        person:'田云纱',
+                        status:0
+                    }
+                ],
+                question_list_status:['未回复','已回复'],
+                type_list:[
+                    {
+                        id:'0',
+                        type_con:'三会一课',
+                        type_bg:'#2a3345'
+                    },
+                    {
+                        id:'1',
+                        type_con:'党建活动',
+                        type_bg:'#67C23A'
+                    },
+                    {
+                        id:'2',
+                        type_con:'计划生育',
+                        type_bg:'#F56C6C'
+                    },
+                    {
+                        id:'3',
+                        type_con:'阅读理解',
+                        type_bg:'#909399'
+                    }
+                ],
+                dialogFormVisible:false,
+                dialogFormVisibler:false,
+                innerVisible:false,
+                dialog_form0:{
+                    service_name:'',
+                    service_bg:''
+                },
+                dialog_form1:{
+                    answer_list:[]
+                },
+            },
+            computed:{
+               
+            },
+            created:function(){
+              
+            },
+            methods:{
+                innerVisibleOpen:function(){
+                    var that = this;
+                    that.innerVisible = true;
+                },
+                innerVisibleOff:function(){
+                    var that = this;
+                    that.innerVisible = false;
+                },
+                submitDialogForm0:function(){
+                    var that = this;
+                    // that.$refs.dialog_form0.validate(function(valid){
+                    //     if (valid) {
+                    //         that.innerVisibleOff();
+                    //     }
+                    // });
+                },
+                dialogFormVisiblerOpen:function(){
+                    var that = this;
+                    that.dialogFormVisibler = true;
+                },
+                dialogFormVisiblerOff:function(){
+                    var that = this;
+                    that.dialogFormVisibler = false;
+                    that.dialog_form1.answer_list=[];
+                },
+                addAnswer:function(){
+                    var that = this;
+                    var list = { value:''};
+                    that.dialog_form1.answer_list.push(list);
+                },
+                removeAnswer:function(index){
+                    var that = this;
+                    this.$confirm('此操作将永久删除该回复, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        that.dialog_form1.answer_list.splice(index, 1);
+                        this.$message({
+                            type: 'success',
+                            message: '删除成功!'
+                        });
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });          
+                    });
+                }
+            }
+        })
+    </script>
+</body>
+</html>

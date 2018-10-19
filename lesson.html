@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>三会一课</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="4-2" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">会议列表</span>
+                    <div class="wid-top-btnBox">
+                        <el-button @click="dialogOpen('lesson')">添加会议</el-button>
+                    </div>
+                </div>
+                <div class="page-content">
+                    <el-table :data="lesson_list" style="margin-bottom: 28px;">
+                        <el-table-column prop="meeting_title" label="会议标题"></el-table-column>
+                        <el-table-column prop="meeting_pub_time" label="发布时间" sortable width="200px"></el-table-column>
+                        <el-table-column prop="meeting_start_time" label="会议时间" width="200px"></el-table-column>
+                        <el-table-column prop="users.user_name" label="主持人" width="150px"></el-table-column>
+                        <el-table-column prop="status" label="状态" sortable :formatter="lessonStatusFilter" width="150px"></el-table-column>
+                        <el-table-column label="操作" width="395">
+                            <template slot-scope="scope">
+                                <el-button size="mini" v-if="scope.row.status !== 0" @click="getlistMeetingPerson(scope.row.id)">会议状况</el-button>
+                                <el-button type="info" v-if="scope.row.status !== 0" size="mini" @click="editorLesson(scope.row,'check')">查看</el-button>
+                                <el-button type="primary" size="mini" v-if="scope.row.status === 0" @click="editorLesson(scope.row)">编辑</el-button>
+                                <el-button type="danger" size="mini" v-if="scope.row.status !== 1" @click="delMeeting(scope.row.id)">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-pagination background @current-change="handleLessonCurrentChange" :current-page.sync="lessonCurrentPage" :page-size="lessonPageSize" layout="prev, pager, next, jumper" :page-count="lessonTotal"></el-pagination>
+                </div>
+            </v-container>
+            <el-dialog :title="dialogTitle" :visible.sync="dialog_lesson" top="80px" width="60%" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form :model="lesson_form" ref="lesson_form" label-width="130px">
+                    <el-form-item label="会议标题：" prop="title" :rules="{required:true,message:'请输入会议标题,建议不超过25字',trigger:'blur'}">
+                        <el-input v-model="lesson_form.title" auto-complete="on" placeholder="请输入会议标题,建议不超过25字" :disabled="checkDisabled"></el-input>
+                    </el-form-item>
+                    <el-form-item label="会议时间：" prop="lesson_date" :rules="{validator:validateLessondate,trigger:'blur'}">
+                        <el-date-picker v-model="lesson_form.lesson_date" :clearable="false" :editable="false" type="datetimerange" :picker-options="pickerOptions" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :disabled="checkDisabled" value-format="timestamp"></el-date-picker>
+                    </el-form-item>
+                    <el-form-item label="签到时间：" prop="sign_in_time" :rules="{validator: validatetime,trigger:'blur'}">
+                        <el-input-number v-model="lesson_form.sign_in_time" :max="signInTimeFn" :min="1" label="描述文字" controls-position="right" :disabled="checkDisabled"></el-input-number>
+                        <span>分钟</span>
+                    </el-form-item>
+                    <el-form-item label="会议主持人：" prop="compere" :rules="{validator: validateHost, trigger: 'blur'}">
+                        <el-select v-model="lesson_form.compere.organization_id" placeholder="请选择组织" @change="getHostList" :disabled="checkDisabled">
+                            <el-option v-for="item in compere_opt" :key="item.id" :label="item.organization_name" :value="item.id" ></el-option>
+                        </el-select>
+                        <el-select v-model="lesson_form.compere.user_id" placeholder="请选择会议主持人" :disabled="checkDisabled">
+                            <el-option v-for="item in HostList" :key="item.id" :label="item.user_name" :value="item.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="会议地址：" prop="address" :rules="{required: true,message:'请输入召开会议的地址',trigger:'blur'}">
+                        <el-input v-model="lesson_form.address" auto-complete="on" placeholder="请输入召开会议的地址" :disabled="checkDisabled"></el-input>
+                    </el-form-item>
+                    <el-form-item label="会议简介：" prop="brief" :rules="{required: true,message:'请输入会议简介',trigger:'blur'}">
+                        <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 4}" placeholder="请输入会议简介" resize="none" v-model="lesson_form.brief" :disabled="checkDisabled"></el-input>
+                    </el-form-item>
+                    <el-form-item label="学习感悟：" prop="feel" :rules="{required: true,message:'请输入学习感悟字数，要求不低于10',trigger:'blur'}">
+                        <el-input-number v-model="lesson_form.feel" :min="10" :max="5000" label="字数要求不低于10" controls-position="right" :disabled="checkDisabled"></el-input-number>
+                        <span>字数</span>
+                    </el-form-item>
+                    <el-form-item label="积分：" prop="points" :rules="[{required: true,message:'请输入积分',trigger:'blur'},{ type: 'number', message: '积分必须为数字'}]">
+                        <el-input v-model.number="lesson_form.points" auto-complete="on" placeholder="请输入积分" :disabled="checkDisabled"></el-input>
+                    </el-form-item>
+                    <el-form-item label="提醒待参会人员：">
+                        <el-button type="primary" @click="dialog_switch = true" :disabled="checkDisabled">选择</el-button>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-table :data="select_party_member_list" border>
+                            <el-table-column prop="user_name" label="姓名"></el-table-column>
+                            <el-table-column prop="organization_name" label="所属组织"></el-table-column>
+                            <el-table-column prop="partyMember.party_state" label="党员状态" :formatter="state"></el-table-column>
+                            <el-table-column prop="user_tel" label="手机号"></el-table-column>
+                            <el-table-column prop="user_sex" label="性别" width="50" :formatter="sex"></el-table-column>
+                            <el-table-column prop="partyMember.party_duty" label="党内职务"></el-table-column>
+                            <el-table-column prop="user_integral" label="积分"></el-table-column>
+                            <el-table-column label="操作">
+                                <template slot-scope="scope">
+                                    <el-button type="danger" icon="el-icon-minus" circle size="mini" @click="delectPartyMember(scope.$index)" :disabled="checkDisabled"></el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-form-item>
+                </el-form>
+                <span slot="footer" class="dialog-footer">
+                    <el-button @click="dialogOpen('cancelLesson')">取 消</el-button>
+                    <el-button type="primary" @click="submitForm('lesson_form')" :disabled="btnDisabled" v-show="!checkDisabled">确 定</el-button>
+                </span>
+            </el-dialog>
+
+            <el-dialog title="会议状况" :visible.sync="dialog_meeting" top="80px" width="60%" :close-on-click-modal="false" :close-on-press-escape="false">
+                <p style="text-align: center;font-size: 20px;padding: 0 0 10px;">会议标题</p>
+                <el-tabs v-model="tabs" type="card">
+                    <el-tab-pane :label="'参会'+ meeting_inLength + '人'" name="yicanhui">
+                        <el-table :data="meeting_list.meeting_in" border>
+                            <el-table-column prop="users.user_name" label="姓名"></el-table-column>
+                            <el-table-column prop="organizationstructures.organization_name" label="所属组织" sortable></el-table-column>
+                            <el-table-column prop="person_pub_time" label="报名时间" sortable></el-table-column>
+                            <el-table-column prop="person_sign_time" label="签到时间"></el-table-column>
+                            <el-table-column prop="isparticipants" label="通知" sortable :formatter="isparticipants"></el-table-column>
+                            <el-table-column label="查看">
+                                <template slot-scope="scope">
+                                    <el-button type="text" :disabled="!scope.row.understandings.understanding_content" @click="dialogFeelFn(scope.row)">学习感悟</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                    <el-tab-pane :label="'已请假' + meeting_leaveLength + '人'" name="yiqingjia">
+                        <el-table :data="meeting_list.meeting_leave" border>
+                            <el-table-column type="expand">
+                                <template slot-scope="props">
+                                    <el-form label-position="right" inline>
+                                        <el-form-item label="请假原因：">
+                                            <span>{{props.row.person_leave_reason}}</span>
+                                        </el-form-item>
+                                    </el-form>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="users.user_name" label="姓名"></el-table-column>
+                            <el-table-column prop="organizationstructures.organization_name" label="所属组织" sortable></el-table-column>
+                            <el-table-column prop="person_pub_time" label="请假时间" sortable></el-table-column>
+                            <el-table-column prop="isparticipants" label="通知" sortable :formatter="isparticipants"></el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                    <el-tab-pane :label="'未参会' + meeting_outLength + '人'" name="weicanhui">
+                        <el-table :data="meeting_list.meeting_out" border>
+                            <el-table-column prop="users.user_name" label="姓名"></el-table-column>
+                            <el-table-column prop="organizationstructures.organization_name" label="所属组织" sortable></el-table-column>
+                            <el-table-column prop="person_pub_time" label="报名时间" sortable></el-table-column>
+                            <el-table-column prop="isparticipants" label="通知" sortable :formatter="isparticipants"></el-table-column>
+                            <el-table-column prop="status" label="状态">
+                                <template slot-scope="scope">
+                                    <span v-show="!scope.row.person_sign_time">未签到</span>
+                                    <span v-show="scope.row.person_sign_time">已签到</span>
+                                    <span v-show="!scope.row.person_pub_time">未报名</span>
+                                    <span v-show="scope.row.person_pub_time">已报名</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="查看">
+                                <template slot-scope="scope">
+                                    <el-button type="text" :disabled="scope.row.understandings ? true : false" @click="dialogFeelFn(scope.row)">学习感悟</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                </el-tabs>
+            </el-dialog>
+
+            <!-- 学习感悟 -->
+            <el-dialog title="学习感悟" :visible.sync="dialog_feeling" top="80px" width="60%" :close-on-click-modal="false" :close-on-press-escape="false">
+                <span>{{feelData.name}}</span><span style=" margin-left: 50px;">{{feelData.organizetion_name}}</span> <span style=" margin-left: 50px;">{{feelData.info.length}}字</span>
+                <el-input top="50px" type="textarea" placeholder="请输入内容" v-model="feelData.info"> </el-input>
+            </el-dialog>
+
+            <!-- 提醒待参会人员 -->
+            <select-party-member :dialog_switch.sync="dialog_switch" :questionnaire_participants="idList" @output-party-member="getSelectList"></select-party-member>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/component/selectPartyMember.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                dialogTitle:'',
+                breadcrumb:['党课学习','三会一课'],
+                questionnaire_participants:'',
+                // 会议列表
+                lesson_list:[],
+                lesson_ID:'',
+                lessonCurrentPage:1,
+                lessonTotal:0,
+                lessonPageSize:10,
+                meeting_inLength:0,
+                meeting_leaveLength:0,
+                meeting_outLength:0,
+                // lesson被LeeCu定义为会议
+                dialog_lesson:false, //添加会议模态框
+                select_party_member:false,
+                dialog_meeting:false, //查看会议模态框
+                dialog_feeling:false, // 学习感悟模态框
+                dialog_switch:false, // 提醒待参会人员
+                idList:'',// 邀请参会人员id字符串
+                feelData:{
+                    name:'',
+                    info:'',
+                    organizetion_name:''
+                }, // 学习感悟数据
+                // 添加会议
+                lesson_form:{
+                    title:'',
+                    lesson_date:'',
+                    sign_in_time:1,
+                    compere:{
+                        organization_id: '',
+                        user_id:''
+                    },
+                    address:'',
+                    brief:'',
+                    feel:1000,
+                    points:''
+                },
+                // 会议主持人列表
+                HostList:[],
+                // 组织列表
+                compere_opt:[],
+                // 邀请参会人员
+                select_party_member_list:[],
+                checkDisabled: false,
+                btnDisabled:false,
+                tabs:'yicanhui',
+                meeting_list:[],
+                pickerOptions:{
+                    disabledDate:function(time) {
+                        return time.getTime() < Date.now() - 8.64e7;
+                    }
+                },
+                // // 签到最大时间
+                // signintimeMax:1
+            },
+            created:function() {
+                var that = this;
+                that.getlessonList(1,that.lessonPageSize);
+                that.getSuperiorList();
+            },
+            computed:{
+                signInTimeFn:function(){
+                    var that = this;
+                    return (that.lesson_form.lesson_date[1] - that.lesson_form.lesson_date[0])/60000;
+                },
+            },
+            methods:{
+                
+                // 编辑获取会议 ID
+                editorLesson:function(data,type){
+                    var that = this;
+                    console.log(data.meeting_sign_time);
+                    if(type === 'check'){
+                        that.dialogTitle = '会议信息';
+                        that.checkDisabled = true;
+                    }else{
+                        that.dialogTitle = '编辑会议信息';
+                    }
+                    that.lesson_ID = data.id;
+                    lesson_form = that.lesson_form;
+                    lesson_form.title = data.meeting_title;
+                    lesson_form.lesson_date = [new Date(data.meeting_start_time),new Date(data.meeting_end_time)];
+                    lesson_form.sign_in_time = data.meeting_sign_time;
+                    lesson_form.compere.organization_id = data.meeting_host_organization_id;
+                    api.post('/admin/partymembers/list',
+                    {
+                        num: 1000,
+                        page:1,
+                        organization_id:data.meeting_host_organization_id
+                    },function(res){
+                        if (res.data.code == 1005) {
+                            that.HostList = res.data.data.data;
+                            lesson_form.compere.user_id = data.meeting_host_user_id;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                    lesson_form.address = data.meeting_address;
+                    lesson_form.brief = data.meeting_introduce;
+                    lesson_form.feel = data.meeting_perception_words;
+                    lesson_form.points = data.meeting_integral;
+                    that.idList = data.meeting_participants;
+                    var idList = data.meeting_participants.split(',');
+                    api.post('/admin/partymembers/list',
+                    {
+                        num: 1000000,
+                        page:1,
+                        organization_id:0
+                    },function(res){
+                        if (res.data.code == 1005) {
+                            var tableData = res.data.data.data;
+                            that.select_party_member_list = tableData.filter(function(currentValue,index,arr){
+                                var id = currentValue.id+'';
+                                return idList.indexOf(id) !== -1; 
+                            });
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                        
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                    that.dialog_lesson = true;
+                },
+                // 删除会议
+                delMeeting:function(id){
+                    var that = this;
+                    api.post('/admin/meetings/delMeeting',{
+                        id:id
+                    },function(res){
+                        if(res.data.code === 1003){
+                            that.$message({type: 'success',message: '删除成功'});
+                            that.getlessonList(1,that.lessonPageSize);
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        console.log(err);
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 邀请参会人员id字符串
+                getIdList:function(){
+                    var that = this;
+                    var data = that.select_party_member_list;
+                    var length = data.length;   
+                    that.idList = '';
+                    for(var i = 0; i < length; i++){
+                        that.idList += data[i].id + '' + ',';
+                    }
+                    that.idList = that.idList.slice(0,that.idList.length - 1);
+                },
+                // 移除选中的提醒人员
+                delectPartyMember:function(index){
+                    var that = this;
+                    that.select_party_member_list.splice(index,1);
+                },
+                // 提醒待参会人员
+                getSelectList:function(data){
+                    var that = this;
+                    that.select_party_member_list = data.data;
+                    that.getIdList();
+                },
+                // 学习感悟
+                dialogFeelFn:function(data){
+                    var that = this;
+                    console.log(data);
+                    if(data.users === null){
+                        that.feelData.name = '无';
+                    }else{
+                        that.feelData.name = data.users.user_name;
+                    }
+                    that.feelData.organizetion_name = data.organizationstructures.organization_name;
+                    that.feelData.info = data.understandings.understanding_content;
+                    that.dialog_feeling = true;
+                },
+                // 添加会议
+                addLesson:function(){
+                    var that = this;
+                    // 禁止按钮操作
+                    that.btnDisabled = true;
+                    data = that.lesson_form;
+                    var jsondata = {}; 
+                    var start_time = new Date(data.lesson_date[0]).getTime()+'';
+                    var end_time = new Date(data.lesson_date[1]).getTime()+'';
+                    start_time = parseInt(start_time.slice(0,9)+'0');
+                    end_time = parseInt(end_time.slice(0,9)+'0');
+                    that.getIdList()    
+                    lesson_ID = that.lesson_ID;
+                    if(lesson_ID){
+                        // 编辑
+                        jsondata = {
+                            'meeting_title':data.title,
+                            'meeting_start_time':start_time,
+                            'meeting_end_time':end_time,
+                            'meeting_sign_time':data.sign_in_time,
+                            'meeting_host_organization_id':data.compere.organization_id,
+                            'meeting_host_user_id':data.compere.user_id,
+                            'meeting_address':data.address,
+                            'meeting_introduce':data.brief,
+                            'meeting_perception_words':data.feel,
+                            'meeting_integral':parseInt(data.points),
+                            'meeting_participants':that.idList,
+                            'id':lesson_ID
+                        };
+                    }else{
+                        // 添加
+                        jsondata = {
+                            'meeting_title':data.title,
+                            'meeting_start_time':start_time,
+                            'meeting_end_time':end_time,
+                            'meeting_sign_time':data.sign_in_time,
+                            'meeting_host_organization_id':data.compere.organization_id,
+                            'meeting_host_user_id':data.compere.user_id,
+                            'meeting_address':data.address,
+                            'meeting_introduce':data.brief,
+                            'meeting_perception_words':data.feel,
+                            'meeting_integral':parseInt(data.points),
+                            'meeting_participants':that.idList
+                        };
+                    };
+                    that.lesson_ID = '';
+                    api.post('/admin/meetings/addEdit',jsondata,function(res){
+                        if(res.data.code === 1001){
+                            that.dialog_lesson = false;
+                            that.$refs['lesson_form'].resetFields();
+                            that.lesson_form = {
+                                title:'',
+                                lesson_date:'',
+                                sign_in_time:1,
+                                compere:{
+                                    organizetion_id:'',
+                                    user_id:''
+                                },
+                                address:'',
+                                brief:'',
+                                feel:1000,
+                                points:''
+                            };
+                            that.select_party_member_list=[];
+                            that.lesson_ID = '';
+                            that.getlessonList(1,that.lessonPageSize);
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                        that.btnDisabled = false;
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                        that.btnDisabled = false;
+                    });
+                },
+                dialogOpen:function(type){
+                    var that = this;
+                    switch (type) {
+                        case 'lesson':
+                            that.dialog_lesson = true;
+                            that.dialogTitle = '添加会议';
+                            break;
+                        case 'cancelLesson':
+                            that.dialog_lesson = false;
+                            that.$refs['lesson_form'].resetFields();
+                            that.lesson_form = {
+                                title:'',
+                                lesson_date:'',
+                                sign_in_time:1,
+                                compere:{
+                                    organizetion_id:'',
+                                    user_id:''
+                                },
+                                address:'',
+                                brief:'',
+                                feel:1000,
+                                points:''
+                            };
+                            that.idList='';
+                            that.select_party_member_list=[];
+                            setTimeout(function(){
+                                that.checkDisabled = false;
+                            },700);
+                            break;  
+                        case 'meeting':
+                            that.dialog_meeting = true;
+                            break;
+                        default:
+                            break;
+                    }
+                },
+                // 添加会议提交按钮
+                submitForm:function(formName){
+                    var that = this;
+                    that.$refs[formName].validate(function(valid){
+                        if (valid) {
+                            that.addLesson();
+                        } else {
+                            that.$message({type: 'warning',message: '提交失败！'});
+                            return false;
+                        }
+                    });
+                },
+                validateLessondate:function(rule, value, callback){
+                    if(value === ""){
+                        callback(new Error('会议时间不能为空'));
+                    }else if((value[1] - value[0])/60000 < 30){
+                        callback(new Error('会议时间最短时间为30分钟'));
+                    }else if(value[0] < new Date()){
+                        callback(new Error('会议时间开始时间已过'));
+                    }else{
+                        callback();
+                    }
+                },
+                validatetime:function(rule, value, callback){
+                    var that = this;
+                    if(that.lesson_form.lesson_date === ''){
+                        callback(new Error('请先选择会议时间'));
+                    }else{
+                        callback();
+                    }
+                },
+                // 验证会议主持人
+                validateHost:function(rule, value, callback){
+                    if(value.organization_id === ''||value.user_id === ''){
+                        callback(new Error('请先选择组织再选择会议主持人'));
+                    }else{
+                        callback();
+                    }
+                },
+                // 获取会议列表
+                getlessonList:function(lessonCurrentPage,lessonPageSize){
+                    var that = this;
+                    api.post('/admin/meetings/listMeeting',{
+                        limit:lessonPageSize,
+                        page:lessonCurrentPage
+                    },function(res){
+                        if(res.data.code === 1005){
+                            that.lessonTotal = res.data.data.last_page;
+                            that.lesson_list = res.data.data.data;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 获取会议状况
+                getlistMeetingPerson:function(id){
+                    var that = this;
+                    api.post('/admin/meetings/listMeetingPerson',{
+                        meeting_id:id
+                    },function(res){
+                        if(res.data.code === 1005){
+                            console.log(res.data.data)
+                            that.meeting_list = res.data.data;
+                            that.meeting_inLength = that.meeting_list.meeting_in.length;    
+                            that.meeting_leaveLength = that.meeting_list.meeting_leave.length;
+                            that.meeting_outLength = that.meeting_list.meeting_out.length;
+                            that.dialog_meeting = true;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 分页事件
+                handleLessonCurrentChange:function(val){
+                    var that = this;
+                    that.getlessonList(val,that.lessonPageSize)
+                },
+                // 获取组织
+                getSuperiorList:function(){
+                    var that = this;
+                    api.post('/admin/OrganizationStructures/noTreeList',{},function(res){
+                        if(res.data.code === 1005){
+                            that.compere_opt = res.data.data;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 获取主持人列表
+                getHostList:function(value){ 
+                    var that = this;
+                    api.post('/admin/partymembers/list',
+                    {
+                        num: 1000,
+                        page:1,
+                        organization_id:value
+                    },function(res){
+                        if (res.data.code == 1005) {
+                            that.HostList = res.data.data.data;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                        
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 获取时间格式 YYYY-MM-DD
+                getTime:function(date) {
+                    //将字符串转化为时间 
+                    if(typeof date === 'string'){
+                        date = (date).replace(/-/g,"/"); 
+                        date = new Date(date); 
+                    }
+                    var seperator1 = "-";
+                    var year = date.getFullYear();
+                    var month = date.getMonth() + 1;
+                    var strDate = date.getDate();
+                    if (month >= 1 && month <= 9) {
+                        month = "0" + month;
+                    }
+                    if (strDate >= 0 && strDate <= 9) {
+                        strDate = "0" + strDate;
+                    }
+                    var currentdate = year + seperator1 + month + seperator1 + strDate;
+                    return currentdate;
+                },
+                lessonStatusFilter:function(data){
+                    switch(data.status){
+                        case 0:
+                            return '闲置中';
+                            break;
+                        case 1:
+                            return '进行中';
+                            break;
+                        case 2:
+                            return '已结束';
+                            break;
+                    };
+                },
+                 // 筛选展示男女
+                 sex:function(row){
+                    switch(row.user_sex){
+                        case 1:
+                            return '男';
+                            break;
+                        case 2:
+                            return '女';
+                            break;
+                    };
+                },
+
+                state:function(row){
+                    switch(row.partyMember.party_state){
+                        case 1:
+                            return '正式党员';
+                            break;
+                        case 2:
+                            return '预备党员';
+                            break;
+                        case 3:
+                            return '入党积极分子';
+                            break;
+                    };
+                },
+                isparticipants:function(row){
+                    switch(row.isparticipants){
+                        case 1:
+                            return '提醒';
+                            break;
+                        case 0:
+                            return '未提醒';
+                            break;
+                    };
+                }
+
+            }
+        });
+    </script>
+</body>
+</html>

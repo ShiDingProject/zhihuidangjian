@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>城市概况</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-badge__content{
+            top: 10px !important;
+        }
+        .line{
+            width: 100%;
+            min-height: 300px;
+            border-top: 1px #B0BCC8 solid;
+            margin-top: 5px;
+        }
+        .time {
+            font-size: 13px;
+            color: #999;
+        }
+        
+        .bottom {
+            margin-top: 13px;
+            line-height: 12px;
+        }
+
+        .button {
+            padding: 0;
+            display: block;
+            float: right;
+        }
+
+        .btnColor{
+            color: 	#FF0000;
+        }
+
+        .image {
+            width: 100%;
+            display: block;
+        }
+
+        .clearfix:before,
+        .clearfix:after {
+            display: table;
+            content: "";
+        }
+        
+        .clearfix:after {
+            clear: both
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="5-1" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">城市概况</span>
+                    <div class="wid-top-btnBox">
+                        <el-button v-if="btnShow === 0" @click="dialogOpen('1')">介绍</el-button>
+                        <el-button v-if="btnShow === 0" @click="dialogOpen('2')">添加</el-button>
+                        <el-button v-if="btnShow === 1" @click="dialogOpen()">保存</el-button>
+                        <el-button v-if="btnShow === 2" @click="dialogOpen('3')">添加</el-button>
+                    </div>
+                </div>
+                <div class="page-content">
+                    <el-tabs type="card" v-model="activeName1"  @tab-click="handleClick">
+
+                        <el-tab-pane label="领导机构" name="first">
+                            <el-table :data="tableData" style="width: 100%;margin-bottom: 28px;">
+                                <el-table-column label="图片" width="150px">
+                                    <template slot-scope="scope">
+                                        <img style="width: 100px; height: 100px;" v-bind:src="scope.row.img" alt="职位图片">
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="name" label="名称" width="150px"></el-table-column>
+                                <el-table-column prop="job" label="职位" width="200px"></el-table-column>
+                                <el-table-column width="320" label="操作">
+                                    <template slot-scope="scope">
+                                        <el-button size="mini" type="primary" @click="delect(scope.row.id)">编辑</el-button>
+                                        <el-button size="mini" type="danger" @click="delect(scope.row.id)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                            <el-pagination background @current-change="handleCurrentChange" :current-page.sync="currentPage" :total="pagetotal" :page-size="pagesize" layout="prev, pager, next, jumper" :total="100"></el-pagination>
+                        </el-tab-pane>
+                        
+                        <el-tab-pane label="主要职能" name="second">
+                            <el-input type="textarea" :rows="10" style="width: 800px;" placeholder="请输入内容" v-model="jobInfo"></el-input>
+                        </el-tab-pane>
+    
+                        <el-tab-pane label="内设机构" name="third">
+                            <el-row>
+                                <el-col :span="8" v-for="(o, index) in 2" :key="o" :offset="index > 0 ? 2 : 0">
+                                    <el-card :body-style="{ padding: '0px' }">
+                                    <img src="./assets/img/bg2.jpg" class="image">
+                                    <div style="padding: 14px;">
+                                        <span>好吃的汉堡</span>
+                                        <div class="bottom clearfix">
+                                            <el-button type="text" class="button btnColor">删除</el-button>
+                                            <el-button type="text" class="button">编辑</el-button>
+                                        </div>
+                                    </div>
+                                    </el-card>
+                                </el-col>
+                            </el-row>          
+                        </el-tab-pane>
+    
+                    </el-tabs>
+                </div>
+               
+            </v-container>
+           <!-- 领导机构介绍 -->
+            <el-dialog title="介绍" :visible.sync="dialogVisible1" top="80px" width="60%" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form ref="introduce" :model="introduce" label-width="80px">
+                    <el-form-item label="介绍内容">
+                        <el-input type="textarea" rows="10" v-model="introduce.info"></el-input>
+                    </el-form-item>
+                </el-form>
+                <span slot="footer" class="dialog-footer">
+                    <el-button type="primary" @click="onSubmit('1')">保 存</el-button>
+                </span>
+            </el-dialog>
+
+            <!-- 领导机构添加 -->
+            <el-dialog title="介绍" :visible.sync="dialogVisible2" top="80px" width="60%" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form ref="addPersonnelData" :model="addPersonnelData" label-width="80px">
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="姓名：" label-width="100px" prop="name" :rules="{required:true,message:'姓名不能为空',trigger:'blur'}">
+                                <el-input v-model="addPersonnelData.name" auto-complete="on" placeholder="请输入姓名"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-form-item label="添加主图：" label-width="100px" prop="name" :rules="{required:true,message:'图片不能为空',trigger:'blur'}">
+                                <el-upload class="upload-demo" multiple :limit="1" :file-list="addPersonnelData.fileList" action="#" :auto-upload="false" ref="upload" list-type="picture">
+                                    <el-button size="small" type="primary">点击选择图片</el-button>
+                                    <div slot="tip" class="el-upload__tip">请选择 1 张一寸照片只能上传jpg/png文件，且不超过500kb</div>
+                                </el-upload>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="职务：" label-width="100px" prop="job" :rules="{required:true,message:'职务不能为空',trigger:'blur'}">
+                                <el-input v-model="addPersonnelData.job" auto-complete="on" placeholder="请输入职务"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="16">
+                            <el-form-item label="简介：" label-width="100px" prop="job" :rules="{required:true,message:'简介不能为空',trigger:'blur'}">
+                                <el-input type="textarea" rows="5" v-model="addPersonnelData.job" auto-complete="on" placeholder="请对人物进行简单的描述，建议不超过200字..."></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="20">
+                            <el-form-item label="人物履历：" label-width="100px" prop="job" :rules="{required:true,message:'履历不能为空',trigger:'blur'}">
+                                <el-input type="textarea" rows="5" v-model="addPersonnelData.job" auto-complete="on" placeholder="例如：xxxx年xx月——xxxx年xx月，xx省政府研究室工作，历任综合处、信息处、工业处副主任科员、主任科员、副处长；"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="4">
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="20">
+                            <el-form-item label="任免信息：" label-width="100px" prop="job">
+                                <el-input type="textarea" rows="5" v-model="addPersonnelData.job" auto-complete="on" placeholder="例如：xxxx年xx月xx日，xx示范区召开领导干部大会，宣布任命决定：xxx示范区党工委书记。"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="4">
+                        </el-col>
+                    </el-row>
+                </el-form>
+                <span slot="footer" class="dialog-footer">
+                    <el-button type="primary" @click="onSubmit('2')">提交</el-button>
+                </span>
+            </el-dialog>
+
+            <!-- 内设机构添加 -->
+            <el-dialog title="介绍" :visible.sync="dialogVisible3" top="80px" width="60%" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form ref="addInnermarginData" :model="addInnermarginData" label-width="80px">
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="姓名：" label-width="100px" prop="name" :rules="{required:true,message:'姓名不能为空',trigger:'blur'}">
+                                <el-input v-model="addInnermarginData.name" auto-complete="on" placeholder="请输入姓名"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+
+                    <el-row>
+                        <el-col :span="12">
+                            <el-form-item label="添加主图：" label-width="100px" prop="name" :rules="{required:true,message:'图片不能为空',trigger:'blur'}">
+                                <el-upload class="upload-demo" multiple :limit="1" :file-list="addInnermarginData.fileList" action="#" :auto-upload="false" ref="upload" list-type="picture">
+                                    <el-button size="small" type="primary">点击选择图片</el-button>
+                                    <div slot="tip" class="el-upload__tip">请选择 1 张一寸照片只能上传jpg/png文件，且不超过500kb</div>
+                                </el-upload>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="16">
+                            <el-form-item label="简介：" label-width="100px" prop="introduction" :rules="{required:true,message:'简介不能为空',trigger:'blur'}">
+                                <el-input type="textarea" rows="5" v-model="addInnermarginData.introduction" auto-complete="on" placeholder="填写内容简介..."></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                        </el-col>
+                    </el-row>
+                </el-form>
+                <span slot="footer" class="dialog-footer">
+                    <el-button type="primary" @click="onSubmit('3')">提交</el-button>
+                </span>
+            </el-dialog>
+
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/component/selectPartyMember.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                dialogTitle:'',
+                breadcrumb:['政务','城市概况'],
+                activeName1: 'first',
+                tableData:[
+                    {
+                        'img': './assets/img/bg2.jpg',
+                        'name': '小白',
+                        'job': '书记'
+                    }
+                ],
+                pagetotal: 10,
+                pagesize: 10,
+                currentPage: 1,
+                btnShow: 0,
+                jobInfo:'',
+                dialogVisible1: false,
+                dialogVisible2:false,
+                dialogVisible3:false,
+                // 领导机构介绍
+                introduce:{
+                    info: 'asdfad'
+                },
+                addPersonnelData:{
+                    'name':'',
+                    'fileList': [],
+                    'job': ''
+
+                },
+                addInnermarginData:{
+                    'name':'',
+                    'fileList': [],
+                    'introduction': ''
+                }
+            },
+            created:function() {
+                var that = this;
+
+            },
+            methods:{
+                // 领导机构介绍保存
+                introduceFn:function(){ 
+                    var that = this;
+                    that.$confirm('此操作将保存介绍, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(function(){
+                        that.dialogVisible1 = false;
+                        that.$message({
+                            type: 'success',
+                            message: '保存成功!'
+                        });
+                    }).catch(function(){
+                        that.$message({
+                            type: 'info',
+                            message: '已取消保存'
+                        });          
+                    });
+                },
+                // 领导机构添加提交
+                addPersonnelFn:function(){ 
+                    var that = this;
+                    that.$refs['addPersonnelData'].validate((valid) => {
+                        if (valid) {
+                            alert('submit!');
+                            that.dialogVisible2 = false;
+                        } else {
+                            console.log('error submit!!');
+                            return false;
+                        }
+                    });
+                },
+                addInnermarginFn:function(){
+                    var that = this;
+                    that.$refs['addInnermarginData'].validate((valid) => {
+                        if (valid) {
+                            alert('submit!');
+                            that.dialogVisible3 = false;
+                        } else {
+                            console.log('error submit!!');
+                            return false;
+                        }
+                    });
+                },
+                dialogOpen:function(index){
+                    var that = this;
+                    switch (index) {
+                        case '1':
+                            that.dialogVisible1 = true;
+                            break;
+                        case '2':
+                            that.dialogVisible2 = true;
+                            break;
+                        case '3':
+                            that.dialogVisible3 = true;
+                            break;
+                        default:
+                            break;
+                    }
+                },
+                onSubmit:function(index){
+                    var that = this;
+                    switch (index) {
+                        case '1':
+                            that.introduceFn();
+                            break;
+                        case '2':
+                            that.addPersonnelFn();
+                            break;
+                        case '3':
+                            that.addInnermarginFn();
+                            break;
+                        default:
+                            break;
+                    }
+                },
+                handleClick:function(tab, event){
+                    this.btnShow = Number(tab.index);
+                },
+                handleCurrentChange:function(){
+
+                }
+            }
+        });
+    </script>
+</body>
+</html>

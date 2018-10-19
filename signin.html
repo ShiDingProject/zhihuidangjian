@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>志愿者活动</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-badge__content{
+            top: 10px !important; 
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="7-1" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">每日签到</span>
+                </div>
+                <p style="margin: 30px;">每日登陆获得积分</p>
+                <el-input style="width: 200px; margin-left: 30px;" v-model="signin" placeholder="填写积分"></el-input><el-button type="primary" @click="signinFn()">保存</el-button>
+            </v-container>  
+           
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/ckeditor/ckeditor.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['系统设置','每日签到'],
+                signin:''
+            },
+            methods:{     
+                signinFn:function(){
+
+                }         
+            }
+        });
+    </script>
+</body>
+</html>

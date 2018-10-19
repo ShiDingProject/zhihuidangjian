@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>通知公告</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="3-6" :breadcrumb="breadcrumb">
+                <div class="inner">
+                    <div class="inner-title">
+                        <span class="inner-title-span">通知列表</span>
+                        <div class="wid-top-btnBox">
+                            <el-button @click="dialogOpen">添加通知</el-button>
+                        </div>
+                    </div>
+                    <div class="page-content">
+                        <el-table :data="tableData" style="width: 100%;margin-bottom: 28px;">
+                            <el-table-column prop="notice_title" label="通知标题" width="150px"></el-table-column>
+                            <el-table-column prop="notice_type" label="类型" width="150px"></el-table-column>
+                            <el-table-column prop="notice_pub_time" label="发布时间" width="200px"></el-table-column>
+                            <el-table-column prop="content" label="通知内容"></el-table-column>
+                            <el-table-column width="320" label="操作">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" type="danger" @click="delect(scope.row.id)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <el-pagination background @current-change="handleCurrentChange" :current-page.sync="currentPage" :total="pagetotal" :page-size="pagesize" layout="prev, pager, next, jumper" :total="100"></el-pagination>
+                    </div>
+                </div>
+                <el-dialog title="添加通知" :visible.sync="dialogFormVisible" top="80px">
+                    <el-form :model="dialog_form" ref="dialog_form" label-width="120px">
+                        <el-form-item label="通知类型：" prop="type0" :rules="{required:true,message:'请选择新闻类别',trigger:'change'}">
+                            <el-select v-model="dialog_form.type0" placeholder="请选择新闻类别..." style="width: 90%;" @change="getNoticeContent">
+                                <el-option :label="item.label" :value="item.id" v-for="(item,index) of type_opt0" :key="index"></el-option>
+                            </el-select>
+                        </el-form-item>
+                         <el-form-item label="通知内容：" prop="type1" :rules="{required:true,message:'请选择内容',trigger:'change'}">
+                            <el-select v-model="dialog_form.type1" placeholder="请选择新闻内容..." style="width: 90%;">
+                                <el-option :label="item.title" :value="item.id" v-for="(item,index) of type_opt1" :key="index"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="通知标题：" prop="title" :rules="{required:true,message:'请输入新闻标题',trigger:'blur'}">
+                            <el-input v-model="dialog_form.title" auto-complete="off" placeholder="请输入新闻标题..." style="width: 90%;"></el-input>
+                        </el-form-item>
+                      
+                    </el-form>
+                    <div slot="footer" class="dialog-footer">
+                        <el-button @click="dialogOff">取 消</el-button>
+                        <el-button type="primary" @click="submitDialogForm" :disabled="disabeldBtn">确 定</el-button>
+                    </div>
+                </el-dialog> 
+            </v-container>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                disabeldBtn:false,
+                breadcrumb:['党建','通知公告'],
+                type_opt0:[
+                    {
+                        id:1,
+                        label:'三会一课'
+                    },
+                    {
+                        id:2,
+                        label:'调查问卷'
+                    },
+                    {
+                        id:3,
+                        label:'党建动态'
+                    },
+                    {
+                        id:4,
+                        label:'党史人物'
+                    },
+                    {
+                        id:5,
+                        label:'志愿者活动'
+                    },
+                    {
+                        id:6,
+                        label:'线上党课'
+                    },
+                    {
+                        id:7,
+                        label:'在线考试'
+                    }
+                ],
+                type_opt1:[],
+                tableData: [],
+				dialog_form: {
+					type0: '',
+                    type1: '',
+					title: ''
+				},
+				dialogTableVisible: false,
+				dialogFormVisible: false,
+				getLimit: 1,
+                pagesize:10,
+                pagetotal:0,
+                currentPage: 1
+
+            },  
+            created:function(){
+                var that = this;
+                that.getNoticeList(that.pagesize,that.currentPage);
+            },
+            methods:{
+                // 删除通知
+                delect:function(id){
+                    var that = this;
+                    that.$confirm('此操作将永久删除该通知, 是否继续?', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'
+                    }).then(function(){
+                    api.post('/admin/notice/delect', 
+                        {
+                            'id': id
+                        },function(res){
+                            if (res.data.code == 1003) {
+                                that.$message({type: 'success',message: '删除成功!'});
+                                that.getNoticeList(that.pagesize,that.currentPage);
+                            }else{
+                                that.$message({type: 'warning',message: res.data.msg});
+                            }
+                        },function(err){
+                            that.$message({type: 'warning',message: err.message});
+                        });
+                    }).catch(function(){
+                        that.$message({type: 'info',message: '已取消删除'});
+                    });
+                },
+                // 添加通知
+                saveNotice:function(){
+                    var that = this;
+                    var data = that.dialog_form;
+                    console.log(data);
+                    that.disabeldBtn = true;
+                    api.post('/admin/notice/saveNotice', 
+                    {
+                        'notice_type':data.type0,
+                        'notice_pro_id':data.type1,
+                        'notice_title':data.title
+                    },function(res){
+                        if (res.data.code == 1001) {
+                            that.$message({type: 'success',message: res.data.msg});
+                            that.disabeldBtn = false;
+                            that.getNoticeList(that.pagesize,that.currentPage);
+                            that.dialogOff();
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                            that.disabeldBtn = false;
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                        that.disabeldBtn = false;
+                    });
+                },
+                // 获取通知内容
+                getNoticeContent:function(id){
+                    var that = this;
+                    api.post('/admin/notice/getNoticeContent', 
+                    {
+                        type:id
+                    },function(res){
+                        if (res.data.code == 1005) {
+                            that.type_opt1 = res.data.data;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                // 获取通知列表
+                getNoticeList:function(limit,page){
+                    var that = this;
+                    api.post('/admin/notice/getNoticeList', 
+                    {
+                        limit:limit,
+                        page:page
+                    },function(res){
+                        if (res.data.code == 1005) {
+                            that.tableData = res.data.data.data;
+                            console.log(res.data.data.last_page);
+                            that.pagetotal = res.data.data.total;
+                        }else{
+                            that.$message({type: 'warning',message: res.data.msg});
+                        }
+                    },function(err){
+                        that.$message({type: 'warning',message: err.message});
+                    });
+                },
+                handleSizeChange(val) {
+                    console.log('每页'+val+'条');
+                },
+                handleCurrentChange(val) {
+                    var that = this;
+                    that.currentPage = val;
+                    that.getNoticeList(that.pagesize,val);
+                    console.log('当前页:'+val);
+                },
+                // 模态框 展开
+                dialogOpen:function(){
+                    var that = this;
+                    that.dialogFormVisible = true;
+                },
+                // 模态框 收起
+                dialogOff:function(){
+                    var that = this;
+                    that.dialogFormVisible = false;
+                    that.$refs['dialog_form'].resetFields();
+                },
+                // 提交 表单
+                submitDialogForm:function(){
+                    var that = this;
+                    that.$refs.dialog_form.validate(function(valid){
+                        if (valid) {
+                           that.saveNotice();
+                        }
+                    });
+                }
+            }
+        })
+    </script>
+</body>
+</html>

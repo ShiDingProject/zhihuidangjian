@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>调查问卷</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-card{
+            margin: 0 0 22px;
+        }
+        .head-img{
+            width:30px;height:30px;display: block;border-radius: 50%;
+        }
+        .head-img-left{
+            width:30px;height:30px;display: inline-block;border-radius: 50%;
+        }
+        .user-line{
+            padding: 0 0 0 40px;height: 30px;line-height: 30px;vertical-align: middle;position: relative;
+        }
+        .user-line>img{
+            position: absolute;top: 0;left: 0;width: 30px;height: 30px;border-radius: 50%;
+        }
+        .el-popover{
+            height: 600px;overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="3-4" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">问卷列表</span>
+                    <div class="wid-top-btnBox">
+                        <el-button @click="dialogOpen('add')">添加问卷</el-button>
+                    </div>
+                </div>
+                <div class="page-content">
+                    <el-table :data="research_list" style="width: 100%;margin-bottom: 28px;">
+                        <el-table-column prop="id" label="序号" width="50"></el-table-column>
+                        <el-table-column prop="questionnaire_title" label="标题"></el-table-column>
+                        <el-table-column prop="questionnaire_type" label="类别" sortable :formatter="formatterType"></el-table-column>
+                        <el-table-column prop="questionnaire_end_time" label="截止时间"></el-table-column>
+                        <el-table-column prop="status" label="状态" sortable :formatter="formatterStatus"></el-table-column>
+                        <el-table-column width="500" label="操作">
+                            <template slot-scope="scope">
+                                <el-button size="mini" type="success" v-if="scope.row.isPub == 1 && scope.row.status == 0" @click="addPubTime(scope.row.id)">发布</el-button>
+                                <el-button size="mini" type="warning" @click="dialogOpen('alert',0,scope.row.id,scope.row.questionnaire_participants,scope.row.status)">提醒</el-button>
+                                <el-button
+                                    size="mini"
+                                    style="background:#2a3345;color:#fff;"
+                                    @click="dialogOpen('add_item',scope.row.questionnaire_type,scope.row.id)"
+                                    v-if="scope.row.status == 0"
+                                >
+                                    增加{{scope.row.questionnaire_type == 1 ? '投票' : '调研'}}
+                                </el-button>
+                                <el-button size="mini" type="info" @click="dialogOpen('check',scope.row.questionnaire_type,scope.row.id)" v-if="scope.row.status == 1 || scope.row.status == 2">详情</el-button>
+                                <el-button size="mini" @click="dialogOpen('view',scope.row.questionnaire_type,scope.row.id)" v-if="scope.row.status == 1 || scope.row.status == 2">查看</el-button>
+                                <el-button size="mini" type="primary" @click="dialogOpen('edit',0,scope.row.id)" v-if="scope.row.status == 0">编辑</el-button>
+                                <el-button size="mini" type="danger" @click="delQuestionnaire(scope.row.id)">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-pagination background @current-change="getResearchList(currentPage)" :current-page.sync="currentPage" :page-size="limit" layout="prev, pager, next, jumper" :total="total"></el-pagination>
+                </div>
+            </v-container>
+            <!-- 添加问卷模态框 -->
+            <el-dialog :title="dialog_title" :visible.sync="dialog_form" top="80px" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form ref="research_form" :model="research_form" label-width="80px">
+                    <el-form-item label="类型" prop="questionnaire_type" :rules="{required:true,message:'请选择类型',trigger:'change'}">
+                        <el-select v-model="research_form.questionnaire_type" placeholder="请选择" :disabled="dialog_is_disabled || edit_switch">
+                            <el-option v-for="item in type_opt" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item 
+                        label="标题" 
+                        prop="questionnaire_title" 
+                        :rules="[
+                            {required:true,message:'请填写标题',trigger:'blur'},
+                            {min:1,max:30,message:'长度不超过30个字符',trigger:'blur'}
+                        ]">
+                        <el-input v-model="research_form.questionnaire_title" placeholder="请输入内容" :disabled="dialog_is_disabled"></el-input>
+                    </el-form-item>
+                    <el-form-item 
+                        label="积分" 
+                        prop="questionnaire_integral" 
+                        :rules="[
+                            {required:true,message:'请填写积分',trigger:'blur'},
+                            {pattern:/^[1-9]\d*|0$/,message:'数字为大于0的正整数',trigger:'blur'},
+                        ]"
+                    >
+                        <el-input v-model.number="research_form.questionnaire_integral" placeholder="请输入内容" :disabled="dialog_is_disabled"></el-input>
+                    </el-form-item>
+                    <el-form-item label="截止时间" prop="questionnaire_end_time" :rules="{required:true,message:'请选择截止时间',trigger:'blur'}">
+                        <el-date-picker 
+                            v-model="research_form.questionnaire_end_time" 
+                            type="datetime" 
+                            placeholder="选择截止时间" 
+                            :clearable="false" 
+                            :editable="false" 
+                            :picker-options="pickerOpt1" 
+                            value-format="timestamp" 
+                            :disabled="dialog_is_disabled"
+                        ></el-date-picker>
+                    </el-form-item>
+                    <el-form-item 
+                        label="详情" 
+                        prop="questionnaire_des" 
+                        :rules="[
+                            {required:true,message:'请填写详情',trigger:'blur'},
+                            {min:1,max:300,message:'长度不超过300个字符',trigger:'blur'}
+                        ]"
+                    >
+                        <el-input 
+                            type="textarea" 
+                            placeholder="请填写详情（不超过300字）" 
+                            v-model="research_form.questionnaire_des" 
+                            :autosize="{minRows:3,maxRows:8}" 
+                            resize="none" 
+                            :disabled="dialog_is_disabled"
+                        ></el-input>
+                    </el-form-item>
+                    <!-- 投票表单 -->
+                    <div class="vote" v-if="(dialog_form_type == 'add_item' || dialog_form_type == 'edit_item' || dialog_form_type == 'view') && research_type == 'vote'">
+                        <vote-form :vote_data="item" :dialog_form_type="dialog_form_type" v-for="(item,index) of research_form.vote" :key="item.guid" @fresh_vote_list="handleFreshVoteList"></vote-form>
+                    </div>
+                    <!-- 调研表单 -->
+                    <div class="analyst" v-if="(dialog_form_type == 'add_item' || dialog_form_type == 'edit_item' || dialog_form_type == 'view') && research_type == 'analyst'">
+                        <analyst-form :analyst_data="item" :dialog_form_type="dialog_form_type" v-for="item of research_form.analyst" :key="item.guid" @fresh_analyst_list="handleFreshAnalystList"></analyst-form>
+                    </div>
+                </el-form>
+                <span slot="footer" class="dialog-footer">
+                    <el-button @click="dialogClose">取 消</el-button>
+                    <el-button type="primary" @click="submitDialogForm('add')" v-if="dialog_form_type == 'add'" :disabled="ajax_lock">保存问卷(添加)</el-button>
+                    <el-button type="primary" @click="submitDialogForm('edit')" v-if="dialog_form_type == 'edit'" :disabled="ajax_lock">保存问卷(编辑)</el-button>
+                </span>
+            </el-dialog>
+            <!-- 提醒模态框 -->
+            <select-party-member 
+                :dialog_switch.sync="dialog_alert" 
+                @output-party-member="handleOutputPartyMember"
+                :questionnaire_participants="questionnaire_participants"
+                :id="alert_id"
+                :questionnaire_status="questionnaire_status"
+            ></select-party-member>
+            <!-- 详情模态框 -->
+            <el-dialog title="详情" :visible.sync="dialog_check" top="80px" width="80%" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false">
+                <p style="text-align: center;font-size: 20px;padding: 0 0 10px;">关于党员的{{research_type == 'vote' ? '投票' : '调研'}}</p>
+                <p style="text-align: center;font-size: 16px;padding: 0 0 10px;">2018-09-04 15:00</p>
+                <el-row>
+                    <el-col :span="8">
+                        <el-table :data="join_list" border key="join_list">
+                            <el-table-column :label="'参与' + (research_type == 'vote' ? '投票' : '调研') + '总人数：' + participants_count + '人'">
+                                <el-table-column label="头像" width="50">
+                                    <template slot-scope="scope">
+                                        <img :src="scope.row.users.user_picture" alt="" class="head-img">
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="users.user_name" label="姓名"></el-table-column>
+                                <el-table-column label="投票信息" v-if="research_type == 'vote'">
+                                    <el-table-column prop="voting_log_pub_time" label="投票时间"></el-table-column>
+                                    <el-table-column prop="questionnaireVotings.voting_name" label="被投票人"></el-table-column>
+                                </el-table-column>
+                                <el-table-column label="调研信息" v-if="research_type == 'analyst'">
+                                    <el-table-column prop="research_log_pub_time" label="调研时间"></el-table-column>
+                                    <el-table-column label="调研操作" width="100">
+                                        <template slot-scope="scope">
+                                            <el-popover placement="right" width="500" trigger="click" @after-enter="getUserResearchLogs(questionnaire_id,scope.row.user_id)">
+                                                <div class="analyst-page" v-for="(item,index) of userResearchList">
+                                                    <el-card v-if="item.questionnaireresearchs.research_type == 1 || item.questionnaireresearchs.research_type == 2">
+                                                        <div slot="header" class="clearfix">
+                                                            <span>{{index + 1}}.{{item.questionnaireresearchs.research_title}}</span>
+                                                        </div>
+                                                        <div>
+                                                            <el-alert 
+                                                                :title="item.questionnaireresearchs.research_option_a" 
+                                                                :type="highLight('a',item.research_log_answer)" 
+                                                                style="margin:0 0 10px" 
+                                                                :closable="false"
+                                                            ></el-alert>
+                                                        </div>
+                                                        <div>
+                                                            <el-alert 
+                                                                :title="item.questionnaireresearchs.research_option_b" 
+                                                                :type="highLight('b',item.research_log_answer)" 
+                                                                style="margin:0 0 10px" 
+                                                                :closable="false"
+                                                            ></el-alert>
+                                                        </div>
+                                                        <div>
+                                                            <el-alert 
+                                                                :title="item.questionnaireresearchs.research_option_c" 
+                                                                :type="highLight('c',item.research_log_answer)" 
+                                                                style="margin:0 0 10px" 
+                                                                :closable="false"
+                                                            ></el-alert>
+                                                        </div>
+                                                        <div>
+                                                            <el-alert 
+                                                                :title="item.questionnaireresearchs.research_option_d" 
+                                                                :type="highLight('d',item.research_log_answer)"
+                                                                style="margin:0 0 10px" 
+                                                                :closable="false"
+                                                            ></el-alert>
+                                                        </div>
+                                                    </el-card>
+                                                    <el-card v-if="item.questionnaireresearchs.research_type == 3">
+                                                        <div slot="header" class="clearfix">
+                                                            <span>{{index + 2}}.{{item.questionnaireresearchs.research_title}}</span>
+                                                        </div>
+                                                        <el-alert :title="item.research_log_answer" type="info" style="margin:0 0 10px" :closable="false"></el-alert>
+                                                    </el-card>
+                                                </div>
+                                                <el-button slot="reference" type="primary" size="mini">查看结果</el-button>
+                                            </el-popover>
+                                        </template>
+                                    </el-table-column>
+                                </el-table-column>
+                            </el-table-column>
+                        </el-table>
+                    </el-col>
+                    <el-col :span="16">
+                        <div class="dialog-right">
+                            <el-table :data="vote_list" border key="vote_list" v-if="research_type == 'vote'">
+                                <el-table-column type="expand">
+                                    <template slot-scope="props">
+                                        <el-form label-position="right">
+                                            <el-form-item label="信息：">
+                                                <span>{{ props.row.voting_introuce }}</span>
+                                            </el-form-item>
+                                        </el-form>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column type="index" width="80"></el-table-column>
+                                <el-table-column label="头像" width="50">
+                                    <template slot-scope="scope">
+                                        <img :src="scope.row.voting_picture" alt="" class="head-img">
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="voting_name" label="姓名"></el-table-column>
+                                <el-table-column prop="voting_department" label="部门"></el-table-column>
+                                <el-table-column prop="voting_num" label="票数"></el-table-column>
+                            </el-table>
+                            <div class="analyst-page" v-if="research_type == 'analyst'">
+                                <div v-for="(item,index) of analyst_list" :key="item.id">
+                                    <el-card v-if="item.research_type == 1 || item.research_type == 2">
+                                        <div slot="header" class="clearfix">
+                                            <span>{{index + 1}}. {{item.research_title}}</span>
+                                        </div>
+                                        <div>
+                                            <el-badge :value="item.a_count + '人选择'">
+                                                <el-alert :title="item.research_option_a" type="info" style="margin:0 0 10px" :closable="false"></el-alert>
+                                            </el-badge>
+                                        </div>
+                                        <div>
+                                            <el-badge :value="item.b_count + '人选择'">
+                                                <el-alert :title="item.research_option_b" type="info" style="margin:0 0 10px" :closable="false"></el-alert>
+                                            </el-badge>
+                                        </div>
+                                        <div>
+                                            <el-badge :value="item.c_count + '人选择'">
+                                                <el-alert :title="item.research_option_c" type="info" style="margin:0 0 10px" :closable="false"></el-alert>
+                                            </el-badge>
+                                        </div>
+                                        <div>
+                                            <el-badge :value="item.d_count + '人选择'">
+                                                <el-alert :title="item.research_option_d" type="info" style="margin:0 0 10px" :closable="false"></el-alert>
+                                            </el-badge>
+                                        </div>
+                                    </el-card>
+                                    <el-card v-if="item.research_type == 3">
+                                        <div slot="header" class="clearfix">
+                                            <span>{{index + 1}}. {{item.research_title}}</span>
+                                        </div>
+                                        <el-popover placement="right" width="500" trigger="click">
+                                            <el-card v-for="(item2,index) of item.users" :key="index">
+                                                <div slot="header" class="clearfix">
+                                                    <p class="user-line"><img :src="item2.user_picture" alt="">{{item2.user_name}}</p>
+                                                </div>
+                                                <p>{{item2.pivot.research_log_answer}}</p>
+                                            </el-card>
+                                            <el-button slot="reference" type="primary">查看结果</el-button>
+                                        </el-popover>
+                                    </el-card>    
+                                </div>
+                            </div>
+                        </div>
+                    </el-col>
+                </el-row>
+                <span slot="footer" class="dialog-footer">
+                    <el-button @click="dialog_check = false">取 消</el-button>
+                    <el-button type="primary">确 定</el-button>
+                </span>
+            </el-dialog>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/component/selectPartyMember.js"></script>
+    <script src="assets/js/component/voteForm.js"></script>
+    <script src="assets/js/component/analystForm.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['党建','问卷调查'],
+                research_list:[],
+                currentPage:1,
+                limit:10,
+                total:0,
+                dialog_title:'', //模态框标题
+                dialog_form:false, //添加模态框控制
+                dialog_form_type:'', //模态框状态
+                research_type:'', //投票和调研状态切换
+                dialog_alert:false, //提醒模态框控制
+                dialog_check:false, //查看模态框控制
+                pickerOpt1:{
+                    disabledDate(time) {
+                        return time.getTime() < new Date().getTime() - 86400000;
+                    },
+                },
+                //添加调查问卷表单
+                research_form:{
+                    id:'',
+                    questionnaire_type:'',
+                    questionnaire_title:'',
+                    questionnaire_integral:'',
+                    questionnaire_end_time:'',
+                    questionnaire_des:'',
+                    // 投票列表
+                    vote:[],
+                    // 调查列表
+                    analyst:[],
+                },
+                // 编辑是锁住类型选择
+                edit_switch:false,
+                // 被邀请人（提醒），组件
+                questionnaire_participants:'',
+                alert_id:'', //提醒用的id，传入子组件用，就是问卷id
+                questionnaire_status:null, //提醒用的调查问卷状态
+                ajax_lock:false, //ajax锁，防止重复请求
+                //问卷类型选项
+                type_opt:[
+                    {
+                        value:1,
+                        label:'投票'
+                    },
+                    {
+                        value:2,
+                        label:'调研'
+                    }
+                ],
+                // 参与投票人员列表
+                join_list:[],
+                participants_count:0,
+                // 调研获取个人答案的调研id    
+                questionnaire_id:'',
+                userResearchList:[],
+                // 投票列表
+                vote_list:[],
+                // 调研列表
+                analyst_list:[],
+            },
+            computed:{
+                dialog_is_disabled:function(){
+                    var that = this;
+                    switch (that.dialog_form_type) {
+                        case 'view':
+                            return true;
+                            break;
+                        case 'add_item':
+                            return true;
+                            break;
+                        default:
+                            return false;
+                            break;
+                    }
+                }
+            },
+            filters: {
+                
+            },
+            created:function(){
+                var that = this;
+                that.getResearchList(1);
+            },
+            methods:{
+                // 获取问卷列表
+                getResearchList:function(page){
+                    var that = this;
+                    api.post('/admin/questionnaires/listQuestionnaire',{
+                        limit:that.limit,
+                        page:page
+                    },function(res){
+                        console.log('getResearchList',res);
+                        that.research_list = res.data.data.data;
+                        that.total = res.data.data.total;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 问卷详情
+                getQuestionnaire:function(id){
+                    var that = this;
+                    api.post('/admin/questionnaires/getQuestionnaire',{
+                        id:id
+                    },function(res){
+                        console.log('getQuestionnaire',res);
+                        that.research_form.questionnaire_type = res.data.data.questionnaire_type;
+                        that.research_form.questionnaire_title = res.data.data.questionnaire_title;
+                        that.research_form.questionnaire_integral = res.data.data.questionnaire_integral;
+                        that.research_form.questionnaire_end_time = new Date(res.data.data.questionnaire_end_time).getTime();
+                        that.research_form.questionnaire_des = res.data.data.questionnaire_des;
+                        that.research_form.id = res.data.data.id;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取投票列表
+                getListVotings:function(questionnaire_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/listVotings',{
+                        questionnaire_id:questionnaire_id
+                    },function(res){
+                        console.log('getListVotings',res);
+                        for (var i = 0; i < res.data.data.length; i++) {
+                            res.data.data[i].type = 'edit';
+                            res.data.data[i].guid = api.guid();
+                        }
+                        that.research_form.vote = res.data.data;
+                        that.research_form.vote.push({
+                            questionnaire_id:questionnaire_id,
+                            voting_name:'',
+                            voting_department:'',
+                            voting_introuce:'',
+                            type:'add',
+                            guid:api.guid(),
+                        });
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取调研列表
+                getListResearchs:function(questionnaire_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/listResearchs',{
+                        questionnaire_id:questionnaire_id
+                    },function(res){
+                        console.log('getListResearchs',res);
+                        for (var i = 0; i < res.data.data.length; i++) {
+                            res.data.data[i].type = 'edit';
+                            res.data.data[i].guid = api.guid();
+                        }
+                        that.research_form.analyst = res.data.data;
+                        that.research_form.analyst.push({
+                            questionnaire_id:questionnaire_id,
+                            research_type:'',
+                            research_title:'',
+                            research_option_a:'',
+                            research_option_b:'',
+                            research_option_c:'',
+                            research_option_d:'',
+                            type:'add',
+                            guid:api.guid(),
+                        });
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 投票左侧人数
+                getVotingLogs:function(questionnaire_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/votingLogs',{
+                        questionnaire_id:questionnaire_id
+                    },function(res){
+                        console.log('getVotingLogs',res);
+                        that.join_list = res.data.data.list;
+                        that.participants_count = res.data.data.participants_count;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 投票右侧票数
+                getListVotingNum:function(questionnaire_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/listVotingNum',{
+                        questionnaire_id:questionnaire_id
+                    },function(res){
+                        console.log('getListVotingNum',res);
+                        that.vote_list = res.data.data;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取调研左侧参与人
+                getResearchLogsUser:function(questionnaire_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/researchLogsUser',{
+                        questionnaire_id:questionnaire_id
+                    },function(res){
+                        console.log('getResearchLogsUser',res);
+                        that.join_list = res.data.data.list;
+                        that.participants_count = res.data.data.participants_count;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取调研右侧调研问卷答案
+                getListResearchNum:function(questionnaire_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/listResearchNum',{
+                        questionnaire_id:questionnaire_id
+                    },function(res){
+                        console.log('getListResearchNum',res);
+                        that.analyst_list = res.data.data;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取调研中参与人的回答情况
+                getUserResearchLogs:function(questionnaire_id,user_id){
+                    var that = this;
+                    api.post('/admin/questionnaires/userResearchLogs',{
+                        questionnaire_id:questionnaire_id,
+                        user_id:user_id
+                    },function(res){
+                        console.log('getUserResearchLogs',res);
+                        that.userResearchList = res.data.data.list;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 标注参与人回答
+                highLight:function(answer,option){
+                    var that = this;
+                    var arr = option.split(',');
+                    var res = arr.indexOf(answer);
+                    if (res == -1) {
+                        return 'info';
+                    }else{
+                        return 'success';
+                    }
+                },
+                // 格式化类别
+                formatterType:function(row,column){
+                    var that = this;
+                    if (row.questionnaire_type == 1) {
+                        return '投票';
+                    }else if (row.questionnaire_type == 2) {
+                        return '调研';
+                    }
+                },
+                // 格式化状态
+                formatterStatus:function(row,column){
+                    var that = this;
+                    if (row.status == 0) {
+                        return '闲置中';
+                    }else if (row.status == 1) {
+                        return '进行中';
+                    }else if (row.status == 2) {
+                        return '已结束';
+                    }
+                },
+                // 发布至app
+                addPubTime:function(id){
+                    var that = this;
+                    that.$confirm('此操作将此问卷发布至app, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        showClose:false,
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/questionnaires/addPubTime',{
+                                    id:id
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1001) {
+                                        that.getResearchList(that.currentPage);
+                                    }else{
+
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                
+                            }
+                        }
+                    });
+                    
+                },
+                delQuestionnaire:function(id){
+                    var that = this;
+                    that.$confirm('此操作将永久删除该问卷调查, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        showClose:false,
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/questionnaires/delQuestionnaire',{
+                                    id:id
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1003) {
+                                        that.getResearchList(that.currentPage);
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                
+                            }
+                        }
+                    });
+                },
+                // 编辑被邀请人（提醒）
+                editParticipants:function(id,questionnaire_participants){
+                    var that = this;
+                    api.post('/admin/questionnaires/editParticipants',{
+                        id:id,
+                        questionnaire_participants:questionnaire_participants
+                    },function(res){
+                        console.log(res);
+                        if (res.data.code == 1001) {
+                            that.$message.success('提醒编辑成功');
+                            that.getResearchList(that.currentPage);
+                        }else if (res.data.code == 1002) {
+                            
+                        }
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 模态框打开
+                dialogOpen:function(type,research,id,questionnaire_participants,status){
+                    var that = this;
+                    switch (type) {
+                        // 添加问卷
+                        case 'add':
+                            that.dialog_form = true;
+                            that.dialog_form_type = 'add';
+                            that.dialog_title = '添加问卷';
+                            break;
+                        // 编辑问卷
+                        case 'edit':
+                            that.dialog_form = true;
+                            that.dialog_form_type = 'edit';
+                            that.dialog_title = '编辑问卷';
+                            that.getQuestionnaire(id);
+                            that.edit_switch = true;
+                            break;
+                        // 查看问卷
+                        case 'view':
+                            console.log(type);
+                            that.dialog_form = true;
+                            that.dialog_form_type = 'view';
+                            that.dialog_title = '查看问卷';
+                            if (research == 1) {
+                                that.research_type = 'vote';
+                                that.getListVotings(id);
+                            }else if (research == 2) {
+                                that.research_type = 'analyst';
+                                that.getListResearchs(id);
+                            }
+                            that.getQuestionnaire(id);
+                            break;
+                        // 添加题目
+                        case 'add_item':
+                            console.log(type);
+                            that.dialog_form = true;
+                            that.dialog_form_type = 'add_item';
+                            that.dialog_title = '增加题目';
+                            if (research == 1) {
+                                that.research_type = 'vote';
+                                that.getListVotings(id);
+                            }else if (research == 2) {
+                                that.research_type = 'analyst';
+                                that.getListResearchs(id);
+                            }
+                            that.getQuestionnaire(id);
+                            break;
+                        // 编辑题目
+                        // case 'edit_item':
+                        //     console.log(type);
+                        //     that.dialog_form = true;
+                        //     that.dialog_form_type = 'edit_item';
+                        //     if (research == 1) {
+                        //         that.research_type = 'vote';
+                        //     }else if (research == 2) {
+                        //         that.research_type = 'analyst';
+                        //     }
+                        //     that.getQuestionnaire(id);
+                        //     break;
+                        // 问卷详情
+                        case 'check':
+                            that.dialog_check = true;
+
+                            that.questionnaire_id = id;
+
+                            if (research == 1) {
+                                that.research_type = 'vote';
+                                that.getVotingLogs(id);
+                                that.getListVotingNum(id);
+                            }else if (research == 2) {
+                                that.research_type = 'analyst';
+                                that.getResearchLogsUser(id);
+                                that.getListResearchNum(id);
+                            }
+                            break;
+                        // 提醒
+                        case 'alert':
+                            that.questionnaire_participants = questionnaire_participants;
+                            that.alert_id = id.toString();
+                            that.questionnaire_status = status;
+                            that.dialog_alert = true;
+                            break;
+                        default:
+                            break;
+                    }
+                },
+                // 模态框关闭
+                dialogClose:function(){
+                    var that = this;
+                    that.dialog_form = false;
+
+                    that.research_form.questionnaire_type = '';
+                    that.research_form.questionnaire_title = '';
+                    that.research_form.questionnaire_integral = '';
+                    that.research_form.questionnaire_end_time = '';
+                    that.research_form.questionnaire_des = '';
+                    that.research_form.id = '';
+                    that.research_form.questionnaire_participants = '';
+
+                    that.research_form.vote = [];
+                    that.research_form.analyst = [];
+
+                    that.dialog_form_type = '';
+                    that.research_type = '';
+                    
+                    that.edit_switch = false;
+
+                    that.$refs.research_form.resetFields();
+                },
+                // 处理子组件vote-form自定义事件的函数
+                handleFreshVoteList:function(callback){
+                    var that = this;
+                    console.log(callback);
+                    that.getListVotings(callback.questionnaire_id);
+                    that.getResearchList(that.currentPage);
+                },
+                // 处理子组件analyst-form自定义事件的函数
+                handleFreshAnalystList:function(callback){
+                    var that = this;
+                    console.log(callback);
+                    that.getListResearchs(callback.questionnaire_id);
+                    that.getResearchList(that.currentPage);
+                },
+                // 处理子组件select-party-member自定义事件的函数
+                handleOutputPartyMember:function(callback){
+                    console.log(callback);
+                    var that = this;
+                    if (callback.data.length == 0) {
+                        that.$message.warning('提醒人数为0');
+                    }else{
+                        var arr = [];
+                        for (var i = 0; i < callback.data.length; i++) {
+                            arr.push(callback.data[i].id);
+                        }
+                        that.editParticipants(callback.id,arr.join(','));
+                    }
+                },
+                // 提交表单
+                submitDialogForm:function(type){
+                    var that = this;
+                    that.$refs.research_form.validate(function(valid){
+                        if (valid) {
+                            if (type == 'add') {
+                                that.addEdit('add');
+                            }else if (type == 'edit') {
+                                that.addEdit('edit');
+                            }
+                        }
+                    });
+                },
+                // 添加编辑问卷
+                addEdit:function(type){
+                    var that = this;
+                    that.ajax_lock = true;
+                    if (type == 'add') {
+                        api.post('/admin/questionnaires/addEdit',{
+                            questionnaire_type:that.research_form.questionnaire_type,
+                            questionnaire_title:that.research_form.questionnaire_title,
+                            questionnaire_integral:that.research_form.questionnaire_integral,
+                            questionnaire_end_time:that.research_form.questionnaire_end_time/1000,
+                            questionnaire_des:that.research_form.questionnaire_des
+                        },function(res){
+                            console.log('addEdit',res);
+                            if (res.data.code == 1001) {
+                                that.dialogClose();
+                                that.getResearchList(1);
+                                that.ajax_lock = false;
+                            }else if (res.data.code == 1002) {
+                                that.ajax_lock = false;
+                            }
+                        },function(err){
+                            console.log(err);
+                        });    
+                    }else{
+                        api.post('/admin/questionnaires/addEdit',{
+                            questionnaire_type:that.research_form.questionnaire_type,
+                            questionnaire_title:that.research_form.questionnaire_title,
+                            questionnaire_integral:that.research_form.questionnaire_integral,
+                            questionnaire_end_time:that.research_form.questionnaire_end_time/1000,
+                            questionnaire_des:that.research_form.questionnaire_des,
+                            id:that.research_form.id,
+                        },function(res){
+                            console.log('addEdit',res);
+                            if (res.data.code == 1001) {
+                                that.dialogClose();
+                                that.getResearchList(1);
+                                that.ajax_lock = false;
+                            }else if (res.data.code == 1002) {
+                                that.ajax_lock = false;
+                            }
+                        },function(err){
+                            console.log(err);
+                        });
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

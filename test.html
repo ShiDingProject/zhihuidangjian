@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>在线考试</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style type="text/css">
+        .el-table::before {left: 0;bottom: 0;width: 100%;height: 0px;}
+        .el-transfer-panel{width: 350px;}
+        /* .el-transfer-panel__body,.el-transfer-panel__list{height: 300px;} */
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="4-1" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">在线考试</span>
+                    <div class="wid-top-btnBox">
+                        <el-button v-if="active_name=='one'" @click="dialogExamOpen('add')">添加考试</el-button>
+                        <el-button v-if="active_name=='two'" @click="dialogTestOpen('add')">添加考题</el-button>
+                    </div>
+                </div>
+                <div class="page-content">
+                    <el-tabs type="card" v-model="active_name" @tab-click="handleTabClick">
+                        <el-tab-pane name="one" label="考试列表">
+                            <el-table :data="exam_list" style="width: 100%;margin-bottom: 28px;">
+                                <el-table-column prop="examination_title" label="考试名称"></el-table-column>
+                                <el-table-column prop="examination_pub_time" label="发布时间" sortable></el-table-column>
+                                <el-table-column prop="examination_answer_time" label="考试时间（分钟）"></el-table-column>
+                                <el-table-column prop="state" label="状态" :formatter="formatterState"></el-table-column>
+                                <el-table-column label="操作" width="320">
+                                    <template slot-scope="scope">
+                                        <el-button size="mini" type="primary" @click="dialogRankingOpen(scope.row)" v-if="scope.row.state != 0">成绩排名</el-button>
+                                        <el-button size="mini"  style="background: #2a3345;color: #fff;" @click="dialogAlertOpen(scope.row)" v-if="scope.row.state == 0">提醒</el-button>
+                                        <el-button size="mini" type="info" @click="dialogExamOpen('edit',scope.row)" v-if="scope.row.state == 0">编辑</el-button>
+                                        <el-button size="mini" @click="dialogExamOpen('view',scope.row)" v-if="scope.row.state != 0">查看</el-button>
+                                        <el-button size="mini" type="danger" @click="delExam(scope.row.id)" v-if="scope.row.state != 1">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                            <el-pagination background @current-change="getExamList(exam_num,exam_page)" :current-page.sync="exam_page" :page-size="exam_num" layout="prev, pager, next, jumper" :total="exam_total"></el-pagination>
+                        </el-tab-pane>
+                        <el-tab-pane name="two" label="题库列表">
+                            <el-table :data="test_list" style="width: 100%;margin-bottom: 28px;">
+                                <el-table-column prop="id" label="题号" sortable width="100"></el-table-column>
+                                <el-table-column prop="question_pub_time" label="发布时间"></el-table-column>
+                                <el-table-column prop="question_title" label="题目"></el-table-column>
+                                <el-table-column prop="question_type" label="选择类型" :formatter="formatterStatus"></el-table-column>
+                                <el-table-column prop="question_answer" label="正确选项"></el-table-column>
+                                <el-table-column label="操作">
+                                    <template slot-scope="scope">
+                                        <el-button size="mini" type="info" @click="dialogTestOpen('edit',scope.row)">编辑</el-button>
+                                        <el-button size="mini" type="danger" @click="delTest(scope.row.id)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                            <el-pagination background @current-change="getTestLists(test_num,test_page)" :current-page.sync="test_page" :page-size="10" layout="prev, pager, next, jumper" :total="test_total"></el-pagination>
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+            </v-container>
+            <!-- 添加\编辑考试 弹框 -->
+            <el-dialog title="添加考试" width="70%" :visible.sync="dialog_exam_switch" style="min-width: 1600px;" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false" top="80px">
+                <el-form :model="dialog_exam" ref="dialog_exam" label-width="120px">
+                    <el-row :gutter="20" style="margin:0px 10px 20px 10px;">
+                        <el-col :span="24">
+                            <el-form-item 
+                                label="考试名称：" 
+                                prop="examination_title" 
+                                :rules="[
+                                    {required:true,message:'请输入考试名称',trigger:'blur'},
+                                    {min:1,max:30,message:'长度不超过30个字符',trigger:'blur'}
+                                ]"
+                            >
+                                <el-input v-model="dialog_exam.examination_title" auto-complete="off" placeholder="请输入考试名称" :disabled="dialog_exam_type == 'view'"></el-input>
+                            </el-form-item>
+                            <el-form-item 
+                                label="考试积分：" 
+                                prop="examination_integral" 
+                                :rules="[
+                                    {required:true,message:'请输入考试积分',trigger:'blur'},
+                                    {pattern:/^[1-9]\d*|0$/,message:'数字为大于0的正整数',trigger:'blur'},
+                                ]"
+                            >
+                                <el-input v-model="dialog_exam.examination_integral" auto-complete="off" placeholder="请输入考试积分" :disabled="dialog_exam_type == 'view'"></el-input>
+                            </el-form-item>
+                            <el-form-item label="考试时间：" prop="time" :rules="{required:true,message:'请输入考试时间',trigger:'blur'}">
+                                <el-date-picker 
+                                    v-model="dialog_exam.time" 
+                                    type="datetimerange" 
+                                    :clearable="false" 
+                                    :editable="false"
+                                    value-format="timestamp"
+                                    placeholder="选择考试时间"
+                                    range-separator="至"
+                                    start-placeholder="开始日期"
+                                    end-placeholder="结束日期"
+                                    :disabled="dialog_exam_type == 'view'"
+                                ></el-date-picker>
+                            </el-form-item>
+                            <el-form-item label="答题时间：" prop="examination_answer_time" :rules="{required:true,message:'请输入考试时间',trigger:'blur'}">
+                                <el-input-number v-model.number="dialog_exam.examination_answer_time" controls-position="right" :min="1" :max="time_range" :disabled="dialog_exam_type == 'view'"></el-input-number>
+                            </el-form-item>
+                            <el-form-item label="考生须知：" prop="examination_notes" :rules="{required:true,message:'请输入考生须知',trigger:'blur'}">
+                                <el-input type="textarea" v-model="dialog_exam.examination_notes" resize="none" :autosize="{minRows:3,maxRows:8}" placeholder="请填写考生须知" :disabled="dialog_exam_type == 'view'"></el-input>
+                            </el-form-item>
+                            <div style="padding-left:120px;margin-bottom:22px;">
+                                <el-transfer 
+                                    v-model="dialog_exam.question_data" 
+                                    :data="exam_list_no_page" 
+                                    :props="{key:'id',label:'question_title',disabled:'lock'}"
+                                    :titles="['题库', '已选考题']"
+                                    @change="handleTransferChange"
+                                    target-order="push"
+                                >
+                                    <!-- <span slot-scope="{option:option}">{{ option.key }} - {{ option.label }}</span> -->
+                                </el-transfer>
+                                <el-table :data="dialog_exam.question_data_filter" border style="margin-top:20px;width: 796px;" ref="question_data_filter">
+                                    <el-table-column :label="'总分：' + question_data_score">
+                                        <el-table-column prop="id" label="序号" width="80"></el-table-column>
+                                        <el-table-column prop="question_title" label="题目"></el-table-column>
+                                        <el-table-column label="设置分数" style="height:30px;">
+                                            <template slot-scope="scope">
+                                                <el-form-item 
+                                                    :prop="'question_data_filter.' + scope.$index + '.score'"
+                                                    label-width="0px"
+                                                    :rules="[
+                                                        {required:true,message:'请设置分数',trigger:'blur'},
+                                                        {pattern:/^[1-9]\d*|0$/,message:'数字为大于0的正整数',trigger:'blur'}
+                                                    ]"
+                                                >
+                                                    <el-input v-model.number="scope.row.score" placeholder="请设置分数" :disabled="dialog_exam_type == 'view'"></el-input>
+                                                </el-form-item>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                            <el-form-item 
+                                label="及格分数：" 
+                                prop="examination_score" 
+                                :rules="[
+                                    {required:true,message:'请输入及格分数',trigger:'blur'},
+                                    {pattern:/^[1-9]\d*|0$/,message:'数字为大于0的正整数',trigger:'blur'}
+                                ]"
+                            >
+                                <el-input v-model.number="dialog_exam.examination_score" placeholder="请设置及格分数" :disabled="dialog_exam_type == 'view'"></el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </el-form>
+                <div slot="footer" class="dialog-footer">
+                    <el-button @click="dialogExamClose">取 消</el-button>
+                    <el-button type="primary" @click="saveExam('add')" v-if="dialog_exam_type == 'add'" :disabled="ajax_lock">确 定(添加)</el-button>
+                    <el-button type="primary" @click="saveExam('edit')" v-if="dialog_exam_type == 'edit'" :disabled="ajax_lock">确 定(编辑)</el-button>
+                </div>
+            </el-dialog> 
+            <!-- 成绩排名 弹框 -->
+            <el-dialog title="成绩排名" :visible.sync="dialog_ranking" :close-on-click-modal="false" :close-on-press-escape="false" @before-close="dialogRankingClose" top="80px">
+                <el-form :inline="true">
+                    <el-form-item label="按姓名查询：">
+                        <el-input placeholder="请输入考生姓名" v-model="ranking_name" @change="getScholarList(ranking_name)"></el-input>
+                    </el-form-item>
+                    <!-- <el-form-item>
+                        <el-button size="small" type="primary">查询</el-button>
+                    </el-form-item> -->
+                    <el-form-item>
+                        <el-button size="small" @click="getScholarList('')">重置</el-button>
+                    </el-form-item>
+                </el-form>
+                <el-table :data="ranking_list" style="width: 100%;">
+                    <el-table-column type="index" width="50" sortable></el-table-column>
+                    <!-- <el-table-column prop="num" label="排名" sortable width="180"></el-table-column> -->
+                    <el-table-column prop="examination_pub_time" label="日期"></el-table-column>
+                    <el-table-column prop="user.user_name" label="姓名"></el-table-column>
+                    <el-table-column prop="examination_user_answer_time" label="答题时间" sortable></el-table-column>
+                    <el-table-column prop="examination_user_score" label="分数" sortable></el-table-column>
+                </el-table>
+            </el-dialog>
+            <!-- 添加试题 弹框 -->
+            <el-dialog title="添加考题" :visible.sync="dialog_test_switch" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                <el-form :model="dialog_test" ref="dialog_test" label-width="120px">
+                    <el-row :gutter="20" class="bannerlist-bg" style="margin:0px 10px 20px 10px;">
+                        <el-col :span="22">
+                            <el-form-item label="考题题目：" prop="question_title" :rules="{required:true,message:'请输入考题题目',trigger:'blur'}">
+                                <el-input type="textarea" v-model="dialog_test.question_title" resize="none" :autosize="{minRows:3,maxRows:8}" placeholder="请填写考题题目"></el-input>
+                            </el-form-item>
+                            <el-form-item label="考题类型：" prop="question_type" :rules="{required:true,message:'请选择考题类型',trigger:'change'}">
+                                <el-select v-model="dialog_test.question_type" placeholder="请选择考题类型" @change="handleTestChange" key="select">
+                                    <el-option label="单选题" value="1"></el-option>
+                                    <el-option label="多选题" value="2"></el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="添加选项：">
+                                <el-button type="primary" @click="addTestAnswer(dialog_test.answer_list.length)">点击添加</el-button>
+                            </el-form-item>
+                            <el-form-item 
+                                v-for="(item,index) in dialog_test.answer_list" 
+                                :key="item.guid" 
+                                :label="item.type + '：'" 
+                                :prop="'answer_list[' + index + '].value'" 
+                                :rules="{required:true,message:'请输入该选项内容',trigger:'blur'}"
+                            >
+                                <el-row>
+                                    <el-col :span="22">
+                                        <el-input v-model="item.value" placeholder="请输入该选项内容"></el-input>
+                                    </el-col>
+                                    <el-col :span="2" style="text-align: right;">
+                                        <el-button icon="el-icon-minus" circle type="danger" size="mini" style="padding: 5px;" v-if="index == dialog_test.answer_list.length - 1 && index > 1" @click="minusTestAnswer(index)"></el-button>
+                                    </el-col>
+                                </el-row>
+                            </el-form-item>
+                            <el-form-item label="正确答案：" prop="question_answer" :rules="{required:true,message:'请选择正确答案',trigger:'change'}" v-if="dialog_test.question_type === '1'" key="single">
+                                <el-select v-model="dialog_test.question_answer" placeholder="请选择正确答案">
+                                    <el-option :label="item.label" :value="item.value" :key="item.guid" v-for="item of test_answer_list"></el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="正确答案：" prop="question_answer" :rules="{required:true,message:'请选择正确答案',trigger:'change'}" v-if="dialog_test.question_type === '2'" key="multiple">
+                                <el-select v-model="dialog_test.question_answer" placeholder="请选择正确答案" multiple>
+                                    <el-option :label="item.label" :value="item.value" :key="item.guid" v-for="item of test_answer_list"></el-option>
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </el-form>
+                <div slot="footer" class="dialog-footer">
+                    <el-button @click="dialogTestClose">取 消</el-button>
+                    <el-button type="primary" @click="saveTest('add')" v-if="dialog_test_type == 'add'" :disabled="ajax_lock">确 定(添加)</el-button>
+                    <el-button type="primary" @click="saveTest('edit')" v-if="dialog_test_type == 'edit'" :disabled="ajax_lock">确 定(编辑))</el-button>
+                </div> 
+            </el-dialog>
+            <!-- 提醒模态框 -->
+            <select-party-member 
+                :dialog_switch.sync="dialog_alert" 
+                @output-party-member="handleOutputPartyMember"
+                :questionnaire_participants="examination_participants"
+                :id="alert_id"
+                :questionnaire_status="examination_status"
+            ></select-party-member>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/component/selectPartyMember.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['党课学习','在线考试'],
+                active_name:'one',
+                // 考试表格分页信息
+                exam_num:10,
+                exam_page:1,
+                exam_total:0,
+                // 考题表格分页信息
+                test_num:10,
+                test_page:1,
+                test_total:0,
+                
+                exam_list:[], // 考试 列表
+                test_list:[], // 题库列表
+
+                exam_list_no_page:[],
+                // 考题表单提交信息
+                dialog_test:{
+                    id:'',
+                    question_title:'',
+                    question_type:'',
+                    question_option_a:'',
+                    question_option_b:'',
+                    question_option_c:'',
+                    question_option_d:'',
+                    question_option_e:'',
+                    question_answer:'',
+
+                    answer_list:[
+                        {
+                            guid:api.guid(),
+                            type:'A',
+                            value:''
+                        },
+                        {   
+                            guid:api.guid(),
+                            type:'B',
+                            value:''
+                        }
+                    ],
+                },
+                // 考试表单提交信息
+                dialog_exam:{
+                    id:'',
+                    examination_title:'',
+                    examination_integral:'',
+                    examination_notes:'',
+                    examination_score:0,
+                    examination_answer_time:1,
+                    
+                    time:[],
+                    question_data:[],
+                    question_data_filter:[],
+                },
+                dialog_test_switch:false, //考题模态框控制
+                dialog_test_type:'', //考题模态框类型
+
+                dialog_exam_switch:false, //考试模态框控制
+                dialog_exam_type:'', //考试模态框类型
+
+                dialog_alert:false, //提醒模态框类型
+                examination_participants:'', //被提醒人
+                alert_id:'', //提醒的考试
+                examination_status:null, //需要提醒的考试的状态
+                
+                dialog_ranking:false, //成绩排名模态框控制
+                ranking_list:[], //成绩排名列表
+                ranking_name:'', //需要检索的姓名
+                ranking_id:'',
+                // 请求锁
+                ajax_lock:false,
+            },
+            computed:{
+                // 题库答案选项列表
+                test_answer_list:function(){
+                    var that = this;
+                    console.log(that.dialog_test.answer_list);
+                    var arr = [];
+                    for (var i = 0; i < that.dialog_test.answer_list.length; i++) {
+                        arr.push({
+                            label:that.dialog_test.answer_list[i].type,
+                            value:that.dialog_test.answer_list[i].type
+                        });
+                    }
+                    return arr;
+                },
+                question_data_score:function(){
+                    var that = this;
+                    var res = 0;
+                    for (var i = 0; i < that.dialog_exam.question_data_filter.length; i++) {
+                        if (that.dialog_exam.question_data_filter[i].score === '') {
+                            res += 0;
+                        }else{
+                            res += that.dialog_exam.question_data_filter[i].score;
+                        }
+                    }
+                    return res;
+                },
+                time_range:function(){
+                    var that = this;
+                    console.log(that.dialog_exam.time);
+                    if (that.dialog_exam.time.length != 0) {
+                        var range = (that.dialog_exam.time[1] - that.dialog_exam.time[0])/1000/60;
+                        console.log(range);
+                        if (range < 1000) {
+                            return range;
+                        }else {
+                            return 999;
+                        }
+                    }else{
+                        return 1;
+                    }
+                }
+            },
+            created:function(){
+                var that = this;
+                that.getExamList(that.exam_num,that.exam_page);
+            },
+            methods:{
+                // 选项卡切换
+                handleTabClick:function(tab, event){
+                    var that = this;
+                    if (that.active_name == 'one') {
+                        that.getExamList(that.exam_num,that.exam_page);
+                    }else if (that.active_name == 'two') {
+                        that.getTestLists(that.test_num,that.test_page);
+                    }
+                },
+                // 获取考试列表
+                getExamList:function(num,page){
+                    var that = this;
+                    api.post('/admin/Examinations/list',{
+                        num:num,
+                        page:page
+                    },function(res){
+                        console.log('getExamList',res);
+                        var arr = res.data.data.data;
+                        for (var i = 0; i < arr.length; i++) {
+                            for (var j = 0; j < arr[i].examination_questions.length; j++) {
+                                arr[i].examination_questions[j].question_answer = arr[i].examination_questions[j].question_answer.join(',');
+                            }
+                        }
+                        that.exam_list = arr;
+                        that.exam_total = res.data.data.total;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取题库列表
+                getTestLists:function(num,page){
+                    var that = this;
+                    api.post('/admin/Questionbank/list',{
+                        num:num,
+                        page:page
+                    },function(res){
+                        console.log('getTestLists',res);
+                        that.test_list = res.data.data.data;
+                        that.test_total = res.data.data.total;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取无分页考题
+                getTestListsNoPage:function(){
+                    var that = this;
+                    api.post('/admin/Questionbank/list',{
+                        num:100000000,
+                        page:1
+                    },function(res){
+                        console.log('getTestListsNoPage',res);
+                        for (var i = 0; i < res.data.data.data.length; i++) {
+                            res.data.data.data[i].score = 0;
+                            res.data.data.data[i].lock = false;
+                        }
+                        that.exam_list_no_page = res.data.data.data;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                getScholarList:function(name){
+                    var that = this;
+                    api.post('/admin/Examinations/scholarList',{
+                        examination_id:that.ranking_id,
+                        name:name
+                    },function(res){
+                        console.log(res);
+                        that.ranking_list = res.data.data.data;
+                        that.ranking_total = res.data.data.total;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 考试 格式化列表状态
+                formatterState:function(row,column){
+                    var that = this;
+                    if (row.state == 0) {
+                        return '闲置中';
+                    }else if (row.state == 1) {
+                        return '进行中';
+                    }else if (row.state == 2) {
+                        return '已结束';
+                    }
+                },
+                // 题库 格式化列表类型
+                formatterStatus:function(row,column){
+                    var that = this;
+                    if (row.question_type == 1) {
+                        return '单选题';
+                    }else if (row.question_type == 2) {
+                        return '多选题';
+                    }
+                },
+                // 考试 模态框打开
+                dialogExamOpen:function(type,row){
+                    var that = this;
+                    that.getTestListsNoPage();
+                    if (type == 'add') {
+                        that.dialog_exam_switch = true;
+                        that.dialog_exam_type = 'add';
+                    }else if (type != 'add') {
+                        that.dialog_exam_switch = true;
+                        if (type == 'edit') {
+                            that.dialog_exam_type = 'edit';
+                        }else if (type == 'view') {
+                            that.dialog_exam_type = 'view';
+                            var timer2 = setInterval(function(){
+                                if (that.exam_list_no_page.length != 0) {
+                                    clearInterval(timer2);
+                                    for (var j = 0; j < that.exam_list_no_page.length; j++) {
+                                        that.exam_list_no_page[j].lock = true;
+                                    }
+                                }
+                            },17);
+                        }
+                        console.log('dialogExamOpen的row',row);
+                        that.dialog_exam.id = row.id;
+                        that.dialog_exam.examination_title = row.examination_title;
+                        that.dialog_exam.examination_integral = row.examination_integral;
+                        that.dialog_exam.examination_notes = row.examination_notes;
+                        that.dialog_exam.examination_score = row.examination_score;
+                        that.dialog_exam.examination_answer_time = row.examination_answer_time;
+
+                        that.dialog_exam.time = [
+                            new Date(row.examination_start_time).getTime(),
+                            new Date(row.examination_end_time).getTime()
+                        ];
+
+                        that.dialog_exam.question_data_filter = row.examination_questions;
+                        
+                        var timer = setInterval(function(){
+                            if (that.exam_list_no_page.length != 0) {
+                                clearInterval(timer);
+                                var arr1 = [];
+                                for (var i = 0; i < row.examination_questions.length; i++) {
+                                    arr1.push(row.examination_questions[i].id);
+                                }
+                                console.log(arr1);
+                                that.dialog_exam.question_data = arr1;        
+                            }
+                        },17);
+                    }
+                },
+                // 考试 模态框关闭
+                dialogExamClose:function(){
+                    var that = this;
+                    that.dialog_exam_switch = false;
+                    that.dialog_exam_type = '';
+                    
+                    that.dialog_exam.id = '';
+                    that.dialog_exam.examination_title = '';
+                    that.dialog_exam.examination_integral = '';
+                    that.dialog_exam.examination_notes = '';
+                    that.dialog_exam.examination_score = 0;
+                    that.dialog_exam.examination_answer_time = 1;
+                    
+                    that.dialog_exam.time = '';
+                    that.dialog_exam.question_data = [];
+                    that.dialog_exam.question_data_filter = [];
+
+                    that.exam_list_no_page = [];
+                    // that.getTestListsNoPage();
+                    // that.$refs.dialog_exam.clearValidate();
+                    
+                },
+                delExam:function(id){
+                    var that = this;
+                    that.$confirm('此操作将永久删除该考试, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        showClose:false,
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/Examinations/destroy',{
+                                    id:id
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1003) {
+                                        that.getExamList(that.exam_num,that.exam_page);
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                
+                            }
+                        }
+                    });
+                },
+                // 考试 保存或编辑考试
+                addEditExam:function(type){
+                    var that = this;
+                    var data = {};
+                    if (type == 'add') {
+                        data = {
+                            examination_title:that.dialog_exam.examination_title,
+                            examination_integral:that.dialog_exam.examination_integral,
+                            examination_start_time:that.dialog_exam.time[0]/1000,
+                            examination_end_time:that.dialog_exam.time[1]/1000,
+                            examination_notes:that.dialog_exam.examination_notes,
+                            examination_questions:JSON.stringify(that.dialog_exam.question_data_filter),
+                            examination_score:that.dialog_exam.examination_score,
+                            examination_answer_time:that.dialog_exam.examination_answer_time,
+                        }
+                    }else if (type == 'edit') {
+                        data = {
+                            id:that.dialog_exam.id,
+                            examination_title:that.dialog_exam.examination_title,
+                            examination_integral:that.dialog_exam.examination_integral,
+                            examination_start_time:that.dialog_exam.time[0]/1000,
+                            examination_end_time:that.dialog_exam.time[1]/1000,
+                            examination_notes:that.dialog_exam.examination_notes,
+                            examination_questions:JSON.stringify(that.dialog_exam.question_data_filter),
+                            examination_score:that.dialog_exam.examination_score,
+                            examination_answer_time:that.dialog_exam.examination_answer_time,
+                        }
+                    }
+                    console.log(data);
+                    that.ajax_lock = true;
+                    api.post('/admin/Examinations/addEdit',data,function(res){
+                        console.log(res);
+                        that.ajax_lock = false;
+                        if (res.data.code == 1001) {
+                            that.getExamList(that.exam_num,that.exam_page);
+                            that.dialogExamClose();
+                        }else if (res.data.code == 1002) {
+
+                        }
+                    },function(err){
+                        console.log(err);
+                        that.ajax_lock = false;
+                    });
+                },
+                // 考试 保存考试
+                saveExam:function(type){
+                    var that = this;
+                    that.$refs.dialog_exam.validate(function(valid){
+                        if (valid) {
+                            if (that.dialog_exam.question_data_filter.length != 0) {
+                                if (that.dialog_exam.examination_score < that.question_data_score) {
+                                    console.log('dialog_exam',that.dialog_exam);
+                                    that.$confirm('此操作将保存考试信息, 是否继续?', '提示', {
+                                        confirmButtonText: '确定',
+                                        cancelButtonText: '取消',
+                                        type: 'warning',
+                                        showClose:false,
+                                        callback:function(action){
+                                            if (action == 'confirm') {
+                                                if (type == 'add') {
+                                                    that.addEditExam('add');
+                                                }else if (type == 'edit') {
+                                                    that.addEditExam('edit');
+                                                }            
+                                            }else if (action == 'cancel') {
+                                                
+                                            }
+                                        }
+                                    });
+                                }else{
+                                    that.$message.warning('及格分数应小于总分！');
+                                }
+                            }else{
+                                that.$message.warning('请选择考试题目！');
+                            }
+                        }
+                    });
+                },
+                // 穿梭框处理
+                handleTransferChange:function(value,direction,movedKeys){
+                    var that = this;
+                    console.log(value, direction, movedKeys);
+                    var arr = [];
+                    for (var i = 0; i < that.exam_list_no_page.length; i++) {
+                        for (var j = 0; j < that.dialog_exam.question_data.length; j++) {
+                            if (that.exam_list_no_page[i].id == that.dialog_exam.question_data[j]) {
+                                arr.push(that.exam_list_no_page[i]);
+                            }
+                        }
+                    }
+                    that.dialog_exam.question_data_filter = arr;
+                },
+                // 题库 模态框打开
+                dialogTestOpen:function(type,row){
+                    var that = this;
+                    if (type == 'add') {
+                        that.dialog_test_switch = true;
+                        that.dialog_test_type = 'add';
+                    }else if (type == 'edit') {
+                        console.log('',row);
+                        that.dialog_test_switch = true;
+                        that.dialog_test_type = 'edit';
+
+                        that.dialog_test.id = row.id;
+                        that.dialog_test.question_title = row.question_title;
+                        that.dialog_test.question_type = row.question_type.toString();
+                        that.dialog_test.answer_list[0].value = row.question_option_a;
+                        that.dialog_test.answer_list[1].value = row.question_option_b;
+                        var arr1 = [row.question_option_c,row.question_option_d,row.question_option_e];
+                        var arr2 = ['C','D','E'];
+                        for (var i = 0; i < arr1.length; i++) {
+                            if (arr1[i] !== '') {
+                                that.dialog_test.answer_list.push({
+                                    guid:api.guid(),
+                                    type:arr2[i],
+                                    value:arr1[i]
+                                });
+                            }
+                        }
+                        if (row.question_type == 1) {
+                            that.dialog_test.question_answer = row.question_answer;
+                        }else{
+                            that.dialog_test.question_answer = row.question_answer.split(',');
+                        }
+                    }
+                },
+                // 题库 模态框关闭
+                dialogTestClose:function(){
+                    var that = this;
+                    that.dialog_test_switch = false;
+                    that.dialog_test_type = '';
+
+                    that.dialog_test.id = '';
+                    that.dialog_test.question_title = '';
+                    that.dialog_test.question_type = '';
+                    that.dialog_test.question_option_a = '';
+                    that.dialog_test.question_option_b = '';
+                    that.dialog_test.question_option_c = '';
+                    that.dialog_test.question_option_d = '';
+                    that.dialog_test.question_option_e = '';
+                    that.dialog_test.question_answer = '';
+
+                    that.dialog_test.answer_list = [{
+                        guid:api.guid(),
+                        type:'A',
+                        value:''
+                    },{   
+                        guid:api.guid(),
+                        type:'B',
+                        value:''
+                    }];
+                    // that.$refs.dialog_test.resetFields();
+                    that.$refs.dialog_test.clearValidate();
+                },
+                // 题库 切换题目类型处理
+                handleTestChange:function(val){
+                    var that = this;
+                    if (val == 1) {
+                        that.dialog_test.question_answer = '';
+                    }else if (val == 2) {
+                        that.dialog_test.question_answer = [];
+                    }
+                },
+                // 题库 添加选项
+                addTestAnswer:function(e){
+                    var that = this;
+                    if(e < 5){
+                        var data = ( 
+                            e == 2 ? 'C' : ( 
+                                e == 3 ? 'D' : 'E'
+                            )
+                        );
+                        that.dialog_test.answer_list.push({guid:api.guid(),type:data,value:''});
+                        console.log(that.dialog_test.answer_list);
+                    }else{
+                        that.$message.warning('当前最多可添加 5 个选项！');
+                    }
+                },
+                // 题库 删除选项
+                minusTestAnswer:function(index){
+                    var that = this;
+                    that.dialog_test.answer_list.splice(index,1);
+                    that.dialog_test.question_answer = that.dialog_test.question_type == 1 ? '' : [];
+                },
+                // 题库 删除考题
+                delTest:function(id){
+                    var that = this;
+                    console.log('id',id);
+                    that.$confirm('此操作将永久删除该考题, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        showClose:false,
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/Questionbank/destroy',{
+                                    id:id
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1003) {
+                                        that.getTestLists(that.test_num,that.test_page);
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                
+                            }
+                        }
+                    });
+                },
+                // 题库 保存或编辑
+                addEditTest:function(type){
+                    var that = this;
+                    var data = {};
+                    if (type == 'add') {
+                        data = {
+                            question_title:that.dialog_test.question_title,
+                            question_type:that.dialog_test.question_type,
+                            question_option_a:that.dialog_test.question_option_a,
+                            question_option_b:that.dialog_test.question_option_b,
+                            question_option_c:that.dialog_test.question_option_c,
+                            question_option_d:that.dialog_test.question_option_d,
+                            question_option_e:that.dialog_test.question_option_e,
+                            question_answer:that.dialog_test.question_type == 1 ? that.dialog_test.question_answer : that.dialog_test.question_answer.join(','),
+                        }
+                    }else if (type == 'edit') {
+                        data = {
+                            id:that.dialog_test.id,
+                            question_title:that.dialog_test.question_title,
+                            question_type:that.dialog_test.question_type,
+                            question_option_a:that.dialog_test.question_option_a,
+                            question_option_b:that.dialog_test.question_option_b,
+                            question_option_c:that.dialog_test.question_option_c,
+                            question_option_d:that.dialog_test.question_option_d,
+                            question_option_e:that.dialog_test.question_option_e,
+                            question_answer:that.dialog_test.question_type == 1 ? that.dialog_test.question_answer : that.dialog_test.question_answer.join(','),
+                        }
+                    }
+                    that.ajax_lock = true;
+                    api.post('/admin/Questionbank/addEdit',data,function(res){
+                        console.log('addEditTest',res);
+                        if (res.data.code == 1001) {
+                            that.getTestLists(that.test_num,that.test_page);
+                            that.dialogTestClose();
+                            that.ajax_lock = false;
+                        }else if (res.data.code == 1002) {
+                            that.ajax_lock = false;
+                        }
+                    },function(err){
+                        console.log(err);
+                        that.ajax_lock = false;
+                    });
+                },
+                // 题库 保存考题
+                saveTest:function(type){
+                    var that = this;
+                    that.$refs.dialog_test.validate(function(valid){
+                        if (valid) {
+                            var arr = ['a','b','c','d','e'];
+                            for (var i = 0; i < that.dialog_test.answer_list.length; i++) {
+                                that.dialog_test['question_option_' + arr[i]] = that.dialog_test.answer_list[i].value
+                            }
+                            if (type == 'add') {
+                                console.log(that.dialog_test);
+                                that.addEditTest('add');
+                            }else if (type == 'edit') {
+                                console.log(that.dialog_test);
+                                that.addEditTest('edit');
+                            }
+                        }
+                    });
+                },
+                dialogAlertOpen:function(row){
+                    var that = this;
+                    that.dialog_alert = true;
+                    that.examination_participants = row.examination_participants;
+                    that.alert_id = row.id.toString();
+                    that.examination_status = row.state;
+                },
+                examinationNotice:function(id,user_ids){
+                    var that = this;
+                    api.post('/admin/Examinations/examinationNotice',{
+                        examination_id:id,
+                        user_ids:user_ids
+                    },function(res){
+                        console.log('examinationNotice',res);
+                        if (res.data.code == 1001) {
+                            that.getExamList(that.exam_num,that.exam_page);
+                        }else if (res.data.code == 1002) {
+                            
+                        }
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                handleOutputPartyMember:function(callback){
+                    var that = this;
+                    console.log(callback);
+                    if (callback.data.length == 0) {
+                        that.$message.warning('提醒人数为0');
+                    }else{
+                        var arr = [];
+                        for (var i = 0; i < callback.data.length; i++) {
+                            arr.push(callback.data[i].id);
+                        }
+                        that.examinationNotice(callback.id,arr.join(','));
+                    }
+                },
+                // 成绩排名 模态框 弹出
+                dialogRankingOpen:function(row){
+                    var that = this;
+                    console.log(row);
+                    that.dialog_ranking = true;
+                    that.ranking_id = row.id;
+                    that.getScholarList(that.ranking_name);
+                },
+                dialogRankingClose:function(done){
+                    var that = this;
+                    that.ranking_list = [];
+                    that.ranking_id = '';
+                    that.ranking_name = '';
+                    done();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

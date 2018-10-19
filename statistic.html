@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="1-1" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">数据</span>
+                    <div class="wid-top-btnBox">
+                        <!-- <el-button @click="dialogOpen('lesson')">添加会议</el-button> -->
+                    </div>
+                </div>
+                <div class="page-content">
+
+                </div>
+            </v-container>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/component/selectPartyMember.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['统计','数据'],
+            },
+            methods:{
+
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>线上党课</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="4-3" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">课程列表</span>
+                    <div class="wid-top-btnBox">
+                        <el-button @click="dialogOpen('addLesson')">添加课程</el-button>
+                    </div>
+                </div>
+                <div class="page-content">
+                    <el-table :data="lesson_list" style="margin-bottom: 28px;">
+                        <el-table-column prop="title" label="课程标题"></el-table-column>
+                        <el-table-column prop="release_date" label="发布时间" sortable></el-table-column>
+                        <el-table-column prop="category" label="类别"></el-table-column>
+                        <el-table-column prop="status" label="状态" sortable></el-table-column>
+                        <el-table-column label="操作" width="395">
+                            <template slot-scope="scope">
+                                <el-button size="mini" @click="dialogOpen('feeling')">学习感悟</el-button>
+                                <el-button type="primary" size="mini">编辑</el-button>
+                                <el-button type="danger" size="mini">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-pagination background @current-change="handleCurrentChange" :current-page.sync="page" :page-size="10" layout="prev, pager, next, jumper" :total="100"></el-pagination>
+                </div>
+            </v-container>
+
+            <!-- 添加课程 -->
+            <el-dialog title="添加课程" :visible.sync="addLesson">
+                <el-form :model="ruleForm" ref="ruleForm" label-width="100px" class="demo-ruleForm">
+                    <el-form-item label="课程标题" prop="name">
+                      <el-input v-model="ruleForm.name"></el-input>
+                    </el-form-item>
+                    <el-form-item label="学习感悟" prop="feeling">
+                        <el-input v-model="ruleForm.feeling"></el-input>
+                    </el-form-item>
+                    <el-form-item label="积分" prop="integral">
+                        <el-input v-model="ruleForm.integral"></el-input>
+                    </el-form-item>
+                    <el-form-item label="是否上架" prop="feeling">
+                        <el-input v-model="ruleForm.feeling"></el-input>
+                    </el-form-item>
+                    <el-form-item label="是否推荐" prop="feeling">
+                        <el-input v-model="ruleForm.feeling"></el-input>
+                    </el-form-item>
+                    <el-form-item label="简介：" props="brief">
+                        <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 4}" placeholder="请输入内容" resize="none" v-model="lesson_list.brief"></el-input>
+                    </el-form-item>
+                    <el-form-item label="类型" props="category">
+                        <el-cascader :options="category_opt" v-model="lesson_list.category" @change="handleChange"></el-cascader>
+                    </el-form-item>
+                    <div v-show='video'>
+                        <el-form-item label="添加视频">
+                            <el-upload
+                                action="#"
+                                class="avatar-uploader"
+                                :auto-upload="false"
+                                :show-file-list="false"
+                                list-type="picture"
+                                :on-change="handleAvatarSuccess">
+                                <video v-if="imageUrl" :src="imageUrl" style="width:150px;">您的浏览器不支持 video 标签</video>
+                                <el-button type="primary" v-else>上传视频</el-button>
+                            </el-upload>
+                            <el-alert
+                                title="视频规格"
+                                type="warning"
+                                description="所有主流视频格式均可上传,上传的视频最大不能超过10G">
+                            </el-alert>
+                        </el-form-item>
+                        <el-form-item label="添加视频封面">
+                            <el-upload
+                                action="#"
+                                class="avatar-uploader"
+                                :auto-upload="false"
+                                :show-file-list="false"
+                                list-type="picture"
+                                :on-change="handleAvatarSuccess">
+                                <img v-if="imageUrl" :src="imageUrl" style="width:150px;"/>
+                                <el-button type="primary" v-else>上传图片</el-button>
+                            </el-upload>
+                        </el-form-item>
+
+                    </div>
+                    
+                    <div v-show='audio'>
+                        <el-form-item label="添加图片">
+                                <el-upload
+                                class="upload-demo"
+                                action="https://jsonplaceholder.typicode.com/posts/"
+                                :on-preview="handlePreview"
+                                :on-remove="handleRemove"
+                                :before-remove="beforeRemove"
+                                multiple
+                                :limit="3"
+                                :on-exceed="handleExceed"
+                                :file-list="fileList">
+                                <el-button size="small" type="primary">点击添加图片</el-button>
+                                </el-upload>
+                        </el-form-item>
+                        <el-form-item label="添加音频">
+                                <el-upload
+                                class="upload-demo"
+                                action="https://jsonplaceholder.typicode.com/posts/"
+                                :on-preview="handlePreview"
+                                :on-remove="handleRemove"
+                                :before-remove="beforeRemove"
+                                multiple
+                                :limit="3"
+                                :on-exceed="handleExceed"
+                                :file-list="fileList">
+                                <el-button size="small" type="primary" class="el-icon-plus"></el-button>
+                                </el-upload>
+                        </el-form-item>
+                    </div>
+                    <div v-show='manuscripts'>
+                            <el-form-item label="添加图片">
+                                    <el-upload
+                                    class="upload-demo"
+                                    action="https://jsonplaceholder.typicode.com/posts/"
+                                    :on-preview="handlePreview"
+                                    :on-remove="handleRemove"
+                                    :before-remove="beforeRemove"
+                                    multiple
+                                    :limit="3"
+                                    :on-exceed="handleExceed"
+                                    :file-list="fileList">
+                                    <el-button size="small" type="primary">点击添加图片</el-button>
+                                  </el-upload>
+                            </el-form-item>
+                            <el-form-item label="添加文稿">
+                                    <el-upload
+                                    class="upload-demo"
+                                    action="https://jsonplaceholder.typicode.com/posts/"
+                                    :on-preview="handlePreview"
+                                    :on-remove="handleRemove"
+                                    :before-remove="beforeRemove"
+                                    multiple
+                                    :limit="3"
+                                    :on-exceed="handleExceed"
+                                    :file-list="fileList">
+                                    <el-button size="small" type="primary" class="el-icon-plus"></el-button>
+                                    </el-upload>
+                                    <el-form-item label="1.目录名称">
+                                        <el-input style="width: 200px;" size="small"></el-input>
+                                        <el-button size="small" type="primary" @click="dialogOpen('addInfo')">添加内容</el-button>
+                                        <el-button size="small" type="danger" class="el-icon-remove-outline"></el-button>
+                                    </el-form-item>
+                                    <el-form-item label="2.目录名称">
+                                        <el-input style="width: 200px;" size="small"></el-input>
+                                        <el-button size="small" type="primary" @click="dialogOpen('addInfo')">添加内容</el-button>
+                                        <el-button size="small" type="danger" class="el-icon-remove-outline"></el-button>
+                                    </el-form-item>
+                                    <el-form-item label="3.目录名称">
+                                        <el-input style="width: 200px;" size="small"></el-input>
+                                        <el-button size="small" type="primary" @click="dialogOpen('addInfo')">添加内容</el-button>
+                                        <el-button size="small" type="danger" class="el-icon-remove-outline"></el-button>
+                                    </el-form-item>
+                            </el-form-item>
+                    </div>
+                    <el-form-item>
+                      <el-button type="primary">立即创建</el-button>
+                    </el-form-item>
+                  </el-form>
+            </el-dialog>
+
+            <!-- 添加内容 -->
+            <el-dialog  title="添加内容" :visible.sync="addInfo">
+                    <el-input
+                    type="textarea"
+                    :rows="12"
+                    placeholder="请输入内容"
+                    v-model="textarea">
+                  </el-input>
+            </el-dialog>
+
+            <!-- 学习感悟 -->
+            <el-dialog title="学习感悟" :visible.sync="feeling">
+                <h3 style="text-align: center">不忘初心 牢记使命 十九大精神讲解党课</h3>
+                <el-table :data="gridData">
+                    <el-table-column property="name" label="姓名" width="100"></el-table-column>
+                    <el-table-column property="organization" label="所属组织" width="200"></el-table-column>
+                    <el-table-column property="date" label="提交时间" width="150"></el-table-column>
+                    <el-table-column property="check" label="查看">
+                        <template slot-scope="scope">
+                            <el-button type="text" size="mini" @click="dialogOpen('check')">学习感悟</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-dialog>
+
+            <!-- 查看学习感悟 -->
+            <el-dialog title="学习感悟" :visible.sync="check">
+                <span></span><span></span><span></span>
+                <el-input
+                    type="textarea"
+                    :rows="12"
+                    placeholder="请输入内容"
+                    v-model="checkInfo">
+                  </el-input>
+            </el-dialog>
+              
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['党课学习','线上党课'],
+                fileList:[],
+                checkInfo:'sjfhksjdfhjsdfhs',
+                check: false,
+                page:4,
+                // 添加内容
+                addInfo: false,
+                textarea: '',
+                // 学习感悟
+                feeling: false,
+                // 课程列表
+                lesson_list: [
+                    {
+                        'title': '英语',
+                        'release_date': '2018-09-01',
+                        'category': '视频',
+                        'status': '上架'            
+                    },
+                    {
+                        'title': '英语',
+                        'release_date': '2018-09-01',
+                        'category': '视频',
+                        'status': '上架'            
+                    },
+                    {
+                        'title': '英语',
+                        'release_date': '2018-09-01',
+                        'category': '视频',
+                        'status': '上架'            
+                    }
+                ],
+                gridData: [
+                    {
+                        'name': 'aaa',
+                        'organization': '北京',
+                        'date': '2018-09-01'
+                    },
+                    {
+                        'name': 'aaa',
+                        'organization': '北京',
+                        'date': '2018-09-01'
+                    },
+                    {
+                        'name': 'aaa',
+                        'organization': '北京',
+                        'date': '2018-09-01'
+                    },
+                    {
+                        'name': 'aaa',
+                        'organization': '北京',
+                        'date': '2018-09-01'
+                    }
+                ],
+                // 添加课程 dialog
+                addLesson: false,
+
+                ruleForm: {
+                    'name': '',
+                    'feeling': '',
+                    'integral': '',
+                    'brief': '',
+                    'category': ''
+                },
+                category_opt: [
+                    {
+                        value: '1',
+                        label: '视频'
+                    },
+                    {
+                        value: '2',
+                        label: '音频'
+                    },
+                    {
+                        value: '3',
+                        label: '文稿'
+                    }
+                ],
+                // 上传文件
+                video: false,
+                audio: false,
+                manuscripts: false,
+                imageUrl:''
+                
+            },
+            methods:{
+                dialogOpen:function(type){
+                    var that = this;
+                    switch (type) {
+                        case 'addLesson':
+                            that.addLesson = true;
+                            break;
+                        case 'addInfo':
+                            that.addInfo = true;
+                            break;
+                        case 'feeling':
+                            that.feeling = true;
+                            break;
+                        case 'check':
+                            that.check = true;
+                            break;
+                        default:
+                            break;
+                    }
+                },
+                handleChange(data) {
+                    var index = data[0];
+                    if(index === '1'){
+                        this.video = true;
+                        this.audio = false;
+                        this.manuscripts = false;
+                    }else if(index === '2'){
+                        this.video = false;
+                        this.audio = true;
+                        this.manuscripts = false;
+                    }else{
+                        this.video = false;
+                        this.audio = false;
+                        this.manuscripts = true;
+                    }
+                },
+                handleRemove(file, fileList) {
+                    console.log(file, fileList);
+                },
+                handlePreview(file) {
+                    console.log(file);
+                },
+                handleExceed(files, fileList) {
+                    this.$message.warning(`当前限制选择 3 个文件，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件`);
+                },
+                beforeRemove(file, fileList) {
+                    return this.$confirm(`确定移除 ${ file.name }？`);
+                },
+                handleAvatarSuccess(res, file){
+                    console.log(file);
+                    this.imageUrl = file[0].url;
+                },
+                handleCurrentChange(){
+
+                },
+                currentPage(){
+
+                },
+                handlePictureCardPreview(){
+
+                }
+                // submitForm(formName) {
+                //     this.$refs[formName].validate((valid) => {
+                //     if (valid) {
+                //         alert('submit!');
+                //     } else {
+                //         console.log('error submit!!');
+                //         return false;
+                //     }
+                //     });
+                // },
+                // resetForm(formName) {
+                //     this.$refs[formName].resetFields();
+                // }
+
+            }
+        });
+    </script>
+</body>
+</html>

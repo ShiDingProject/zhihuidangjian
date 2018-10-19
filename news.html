@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>文章管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="2-2" :breadcrumb="breadcrumb">
+                <div class="inner">
+                    <div class="inner-title">
+                        <span class="inner-title-span">文章列表</span>
+                        <div class="wid-top-btnBox">
+                            <el-button @click="dialogOpen('add')">添加文章</el-button>
+                        </div>
+                    </div>
+                    <div class="page-content">
+                        <el-form :model="search_form" :inline="true">
+                            <el-form-item label="按文章类别：">
+                                <el-select size="small" v-model="search_form.type" placeholder="请选择文章类别" @change="getArticleList(1)">
+                                    <el-option :label="item.category_name" :value="item.id" v-for="(item,index) of type_opt" :key="item.id"></el-option>
+                                </el-select>
+                                <!-- <el-button size="small" type="primary">查询</el-button> -->
+                                <el-button size="small" @click="resetSearch">重置</el-button>
+                            </el-form-item>
+                        </el-form>
+                        <el-table :data="article_list" style="width: 100%;margin-bottom: 28px;">
+                            <el-table-column prop="id" label="序号" width="100"></el-table-column>
+                            <el-table-column prop="article_title" label="标题"></el-table-column>
+                            <el-table-column prop="category_id" label="类型" :formatter="formatterCategory"></el-table-column>
+                            <el-table-column prop="article_pub_time" label="发布时间"></el-table-column>
+                            <el-table-column prop="article_istop" label="置顶状态" :formatter="formatterTop"></el-table-column>
+                            <el-table-column width="320" label="操作">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" @click="topNews(scope.row.id,scope.row.article_istop)" v-if="scope.row.article_istop == 0">置顶</el-button>
+                                    <el-button size="mini" @click="topNews(scope.row.id,scope.row.article_istop)" v-if="scope.row.article_istop == 1">取消置顶</el-button>
+                                    <el-button size="mini" type="info" @click="dialogOpen('edit',scope.row.id)">编辑</el-button>
+                                    <el-button size="mini" type="success" @click="showNews(scope.row.id,scope.row.article_isdisplay)" v-if="scope.row.article_isdisplay == 1">上架</el-button>
+                                    <el-button size="mini" type="warning" @click="showNews(scope.row.id,scope.row.article_isdisplay)" v-if="scope.row.article_isdisplay == 0">下架</el-button>
+                                    <el-button size="mini" type="danger" @click="delNews(scope.row.id)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <el-pagination background @current-change="getArticleList(search_form.currentPage)" :current-page.sync="search_form.currentPage" :page-size="search_form.page_limit" layout="prev, pager, next, jumper" :total="total_page"></el-pagination>
+                    </div>
+                </div>
+            </v-container>
+            <keep-alive>
+                <el-dialog :title="dialog_type == 'add' ? '添加文章' : '编辑文章'" :visible.sync="dialogFormVisible" width="60%" top="80px" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                    <el-form :model="dialog_form" ref="dialog_form" label-width="120px">
+                        <el-form-item label="文章标题：" prop="article_title" :rules="[{required:true,message:'请输入新闻标题',trigger:'blur'},{min:1,max:20,message:'字数限时不超过20字',trigger:'blur'}]">
+                            <el-input v-model="dialog_form.article_title" auto-complete="off" placeholder="请填写文章标题"></el-input>
+                        </el-form-item>
+                        <el-form-item label="文章类别：" prop="category_id" :rules="{required:true,message:'请选择新闻类别',trigger:'change'}">
+                            <el-select v-model="dialog_form.category_id" placeholder="请选择文章类别" @change="selectCategoryChange">
+                                <el-option :label="item.category_name" :value="item.id" v-for="(item,index) of type_opt" :key="item.id"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item
+                            label="APP展现样式："
+                            prop="article_displayfrom"
+                            :rules="{required:true,message:'请选择APP展现样式',trigger:'change'}"
+                            v-if="add_news_ctrl.display == true"
+                        >
+                            <el-select v-model="dialog_form.article_displayfrom" placeholder="请选择APP展现样式" @change="selectDisplayFromChange">
+                                <el-option label="左侧一图" value="1"></el-option>
+                                <el-option label="中间三图" value="2"></el-option>
+                                <el-option label="右侧一图" value="3"></el-option>
+                                <el-option label="中间大图" value="4"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item
+                            label="主图：" 
+                            :rules="{required:true,message:'',trigger:''}"
+                            v-if="add_news_ctrl.upload == true"
+                        >
+                            <el-upload class="upload-demo" :before-remove="beforeRemove" multiple :limit="getLimit"  :on-exceed="handleExceed" :file-list="dialog_form.fileList" action="#" :auto-upload="false" ref="upload" list-type="picture">
+                                <el-button size="small" type="primary">点击选择图片</el-button>
+                                <div slot="tip" class="el-upload__tip">请选择 {{getLimit}} 张主图只能上传jpg/png文件，且不超过500kb</div>
+                            </el-upload>
+                        </el-form-item>
+                        <el-form-item label="文章内容：" :rules="{required:true,message:'仅为展示“*”号',trigger:'change'}">
+                            <textarea name="editor" id="editor" rows="10" cols="80"></textarea>
+                        </el-form-item>
+                    </el-form>
+                    <div slot="footer" class="dialog-footer">
+                        <el-button @click="dialogClose">取 消</el-button>
+                        <el-button type="primary" @click="submitDialogForm('add')" v-if="dialog_type == 'add'" :disabled="ajax_lock">确 定('添加')</el-button>
+                        <el-button type="primary" @click="submitDialogForm('edit')" v-if="dialog_type == 'edit'" :disabled="ajax_lock">确 定('编辑')</el-button>
+                    </div>
+                </el-dialog>
+            </keep-alive>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/ckeditor/ckeditor.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['新闻','文章管理'],
+                search_form: {
+                    type:'',
+                    page_limit:10,
+                    currentPage:1,
+                },
+                total_page:0,
+                type_opt:[],
+                article_list:[],
+				dialog_form: {
+                    id:'', //文章id
+					category_id: '', //文章分类
+					article_title: '', //文章标题
+					article_displayfrom: '', //app展示形式
+					fileList: [], 
+                    article_content:'', //文章内容
+                    need_app_display:'', // 是否需要app展示形式
+				},
+                dialogFormVisible: false,
+                dialog_type:'',
+				editorStatus: 0,
+				getLimit: 1,
+
+                ajax_lock:false,
+            },
+            computed:{
+                // 模态框内表单组件交互控制
+                add_news_ctrl:function(){
+                    var that = this;
+                    if (that.dialog_form.category_id != '') {
+                        if (that.dialog_form.need_app_display == 1) {
+                            switch (that.dialog_form.article_displayfrom) {
+                                case '':
+                                    return {
+                                        display:true,
+                                        upload:false
+                                    }
+                                    break;
+                                case '1':
+                                case '3':
+                                case '4':
+                                    that.getLimit = 1;
+                                    that.$nextTick(function(){
+                                        that.$refs.upload.clearFiles();
+                                    });
+                                    return {
+                                        display:true,
+                                        upload:true
+                                    }
+                                    break;
+                                case '2':
+                                    that.getLimit = 3;
+                                    that.$nextTick(function(){
+                                        that.$refs.upload.clearFiles();
+                                    });
+                                    return {
+                                        display:true,
+                                        upload:true
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }else if (that.dialog_form.need_app_display == 2) {
+                            that.getLimit = 1;
+                            that.$nextTick(function(){
+                                that.$refs.upload.clearFiles();
+                            });
+                            return {
+                                display:false,
+                                upload:true
+                            }
+                        }
+                    }else{
+                        return {
+                            display:false,
+                            upload:false
+                        }
+                    }
+                }
+            },
+            created:function(){
+                var that = this;
+                that.getArticleCategory();
+                that.getArticleList(1);
+            },
+            methods:{
+                // 获取文章分类
+                getArticleCategory:function(){
+                    var that = this;
+                    api.post('/admin/article/getCategory',{},function(res){
+                        console.log(res);
+                        that.type_opt = res.data.data;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取文章列表
+                getArticleList:function(page){
+                    var that = this;
+                    api.post('/admin/article/getArticleList',{
+                        cid:that.search_form.type,
+                        limit:that.search_form.page_limit,
+                        page:page
+                    },function(res){
+                        console.log('getArticleList',res);
+                        that.article_list = res.data.data.data;
+                        that.total_page = res.data.data.total;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取文章详情
+                getArticle:function(id){
+                    var that = this;
+                    api.post('/admin/article/article',{
+                        id:id
+                    },function(res){
+                        console.log('getArticle',res);
+                        if (res.data.code == 1005) {
+                            that.dialog_form.article_title = res.data.data.article_title;
+                            that.dialog_form.category_id = res.data.data.category_id;
+                            for (var i = 0; i < that.type_opt.length; i++) {
+                                if (that.type_opt[i].id == res.data.data.category_id) {
+                                    that.dialog_form.need_app_display = that.type_opt[i].category_displayfrom;
+                                    if (that.dialog_form.need_app_display == 1) {
+                                        // 接口内的article_displayfrom的值类型是number，需要转成字符串，否则计算属性add_news_ctrl内的switch不通过
+                                        that.dialog_form.article_displayfrom = res.data.data.article_displayfrom.toString();
+                                    }
+                                }
+                            }
+                            that.$nextTick(function(){
+                                var img_arr = [];
+                                for (var i = 0; i < res.data.data.article_pictures.length; i++) {
+                                    img_arr.push({
+                                        name:'upload-img' + (i + 1),
+                                        url:res.data.data.article_pictures[i]
+                                    });
+                                }
+                                that.dialog_form.fileList = img_arr;
+                            });
+                            that.dialog_form.id = res.data.data.id;
+                            CKEDITOR.instances.editor.setData(res.data.data.article_content);
+                        }
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                resetSearch:function(){
+                    var that = this;
+                    that.search_form.type = '';
+                    that.search_form.currentPage = 1;
+                    that.getArticleList(1);
+                },
+                // 格式化列表 类别
+                formatterCategory:function(row,column){
+                    var that = this;
+                    for (var i = 0; i < that.type_opt.length; i++) {
+                        if (that.type_opt[i].id == row.category_id) {
+                            return that.type_opt[i].category_name;
+                        }
+                    }
+                },
+                // 格式化列表 置顶
+                formatterTop:function(row,column){
+                    if (row.article_istop == 0) {
+                        return '未置顶';
+                    }else if (row.article_istop == 1) {
+                        return '已置顶';
+                    }
+                },
+                //删除
+                delNews:function(id){
+                    var that = this;
+                    that.$confirm('此操作将永久删除该新闻, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/article/delect',{
+                                    id:id
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1003) {
+                                        that.getArticleList(that.search_form.currentPage);
+                                        that.$message({type: 'success',message: '删除成功!'});
+                                    }else{
+
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                                // 
+                            }else if (action == 'cancel') {
+                                that.$message({type: 'info',message: '已取消删除'});
+                            }
+                        }
+                    });
+                },
+                //置顶
+                topNews:function(id,istop){
+                    var that = this;
+                    that.$confirm('此操作将置顶该新闻, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/article/setTopArticle',{
+                                    id:id,
+                                    istop:istop == 0 ? 1 : 0
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1001) {
+                                        that.getArticleList(that.search_form.currentPage);
+                                        if (istop == 0) {
+                                            that.$message({type: 'success',message: '置顶成功!'});
+                                        }else{
+                                            that.$message({type: 'success',message: '取消置顶成功!'});
+                                        }
+                                        
+                                    }else{
+
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                that.$message({type: 'info',message: '已取消置顶'});
+                            }
+                        }
+                    });
+                },
+                //上架
+                showNews:function(id,isdisplay){
+                    var that = this;
+                    console.log(isdisplay == 0 ? '已上架':'已下架',isdisplay);
+                    that.$confirm('此操作将上架该新闻, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/article/publishArticle',{
+                                    id:id,
+                                    isdisplay:isdisplay == 0 ? 1 : 0
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1001) {
+                                        that.getArticleList(that.search_form.currentPage);
+                                        if (isdisplay == 0) {
+                                            that.$message({type: 'success',message: '下架成功!'});
+                                        }else{
+                                            that.$message({type: 'success',message: '上架成功!'});
+                                        }
+                                    }else{
+
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                that.$message({type: 'info',message: '已取消上架'});
+                            }
+                        }
+                    });
+                },
+                // 模态框 展开
+                dialogOpen:function(type,id){
+                    var that = this;
+                    if (type == 'add') {
+                        that.dialog_type = 'add';
+                        that.dialogFormVisible = true;
+                    }else if (type == 'edit') {
+                        that.dialog_type = 'edit';
+                        that.dialogFormVisible = true;
+                        that.getArticle(id);
+                    }
+                    if(that.editorStatus == 0){
+                        that.$nextTick(function(){
+                            if(document.getElementById('editor')){
+                                CKEDITOR.replace('editor',{
+                                    filebrowserUploadUrl: 'http://192.168.1.155/admin/article/uploadCkeditor',
+                                });
+                            }
+                        });
+                        that.editorStatus = 1;
+				    }
+                },
+                // 模态框 收起
+                dialogClose:function(){
+                    var that = this;
+                    that.dialogFormVisible = false;
+                    // that.$refs.dialog_form.clearValidate();
+                    //初始化
+                    that.dialog_form.id = '';
+                    that.dialog_form.category_id = "";
+                    that.dialog_form.article_title = "";
+                    that.dialog_form.article_displayfrom = "";
+                    that.dialog_form.fileList = [];
+                    that.dialog_form.article_content = '';
+                    that.dialog_form.need_app_display = '';
+
+                    CKEDITOR.instances.editor.setData('');
+
+                    that.$refs.dialog_form.resetFields();
+                },
+                //文章类别select
+                selectCategoryChange:function(id){
+                    var that = this;
+                    console.log('文章类别id',id);
+                    for (var i = 0; i < that.type_opt.length; i++) {
+                        if (that.type_opt[i].id == id) {
+                            that.dialog_form.need_app_display = that.type_opt[i].category_displayfrom;
+                        }
+                    }
+                    that.dialog_form.article_displayfrom = '';
+                    console.log('need_app_display',that.dialog_form.need_app_display);
+                    console.log('dialog_form',that.dialog_form);
+                },
+                // APP展现样式select 改变
+                selectDisplayFromChange:function(){
+                    var that = this;
+                    console.log('article_displayfrom',that.dialog_form.article_displayfrom);
+                    that.$nextTick(function(){
+                        that.$refs.upload.clearFiles(); //清空上传图片列表
+                    });
+                },
+                // 上传的图片 超出limit
+                handleExceed(files,fileList) {
+                    var that = this;
+                    that.$message.warning('当前最多可上传' + that.getLimit + '个图片文件');
+                },
+                // 上传的图片 删除
+                beforeRemove(file,fileList) {
+                    var that = this;
+                    return that.$confirm('删除任意图片则需要重新编辑所有图片','提示',{
+                        showClose:false,
+                        type:'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                that.dialog_form.fileList = [];
+                            }else if (action == 'cancel') {
+
+                            }
+                        }
+                    });
+                },
+                onRemove:function(file,fileList){
+                    var that = this;
+                    console.log('ok');
+                },
+                // 添加和编辑文章详情
+                saveArticle:function(type){
+                    var that = this;
+                    that.ajax_lock = true;
+                    var formdata = new FormData();
+                    formdata.append('article_title',that.dialog_form.article_title);
+                    formdata.append('category_id',that.dialog_form.category_id);
+                    formdata.append('article_displayfrom',that.dialog_form.article_displayfrom);
+                    formdata.append('article_content',that.dialog_form.article_content);
+                    if (type == 'add') {
+                        for (var i = 0; i < that.dialog_form.fileList.length; i++) {
+                            formdata.append('thumb[]',that.dialog_form.fileList[i].raw);
+                        }
+                        api.post('/admin/article/saveArticle',formdata,function(res){
+                            console.log(res);
+                            if (res.data.code == 1001) {
+                                that.dialogClose();
+                                that.getArticleList(that.search_form.currentPage);
+                                that.ajax_lock = false;
+                            }else if (res.data.code == 1002) {
+                                that.ajax_lock = false;
+                            }
+                        },function(err){
+                            console.log(err);
+                        });
+                    }else if (type == 'edit') {
+                        console.log(that.dialog_form.fileList);
+                        if (that.dialog_form.fileList[0].raw != undefined) {
+                            for (var i = 0; i < that.dialog_form.fileList.length; i++) {
+                                formdata.append('thumb[]',that.dialog_form.fileList[i].raw);
+                            }        
+                        }
+                        formdata.append('id',that.dialog_form.id);
+                        api.post('/admin/article/saveArticle',formdata,function(res){
+                            console.log(res);
+                            if (res.data.code == 1001) {
+                                that.dialogClose();
+                                that.getArticleList(that.search_form.currentPage);
+                                that.ajax_lock = false;
+                            }else if (res.data.code == 1002) {
+                                that.ajax_lock = false;
+                            }
+                        },function(err){
+                            console.log(err);
+                        });
+                    }
+                    console.log(formdata);
+                },
+                // 提交 表单
+                submitDialogForm:function(type){
+                    var that = this;
+                    that.$refs.dialog_form.validate(function(valid){
+                        if (valid) {
+                            if(that.$refs.upload){
+                                that.dialog_form.fileList = that.$refs.upload.uploadFiles;
+                            }
+                            if(that.dialog_form.fileList.length != that.getLimit){
+                                that.$message.error('请选择' + that.getLimit + '张图片上传');
+                            }else{
+                                if(CKEDITOR.instances.editor.getData() == ""){
+                                    that.$message.error('请输入新闻内容！');
+                                    return; //return false;在IE中不会达到你想要的效果
+                                }else{
+                                    that.dialog_form.article_content = CKEDITOR.instances.editor.getData();
+                                    console.log(that.dialog_form);
+                                    if (type == 'add') {
+                                        that.saveArticle('add');   
+                                    }else if (type == 'edit') {
+                                        that.saveArticle('edit');
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        })
+    </script>
+</body>
+</html>

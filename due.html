@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>党费缴纳</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="3-5" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">党员列表</span>
+                    <div class="wid-top-btnBox">
+                        <el-button>导入模板下载</el-button>
+                        <el-button @click="dialogOpen">导入</el-button>
+                        <el-button>导出</el-button>
+                    </div>
+                </div>
+                <div class="page-content">
+                    <el-form :model="search_form" :inline="true">
+                        <el-form-item label="姓名查询：">
+                            <el-input v-model="search_form.name" placeholder="请输入内容"></el-input>
+                        </el-form-item>
+                        <el-form-item>
+                            <el-button size="small" type="primary">查询</el-button>
+                        </el-form-item>
+                        <el-form-item>
+                            <el-button size="small">重置</el-button>
+                        </el-form-item>
+                    </el-form>
+                    <el-table :data="tableData" style="width: 100%;margin-bottom: 28px;">
+                        <el-table-column prop="date" label="缴费期"></el-table-column>
+                        <el-table-column prop="organize" label="所属组织"></el-table-column>
+                        <el-table-column prop="name" label="姓名"></el-table-column>
+                        <el-table-column prop="money" label="应缴金额" sortable></el-table-column>
+                        <el-table-column prop="way" label="缴费方式"></el-table-column>
+                        <el-table-column prop="time" label="缴费时间"></el-table-column>
+                        <el-table-column prop="status" label="状态" sortable></el-table-column>
+                        <el-table-column width="320" label="操作">
+                            <template slot-scope="scope">
+                                <el-button size="mini" type="danger" @click="">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-pagination background @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page.sync="currentPage" :page-size="10" layout="prev, pager, next, jumper" :total="100"></el-pagination>
+                </div>
+            </v-container>
+            <el-dialog title="添加党员" :visible.sync="dialogFormVisible" width="50%"top="80px">
+                <el-upload action="#" :multiple="false" :limit="1" :auto-upload="true" ref="file_upload" :file-list="file_list" name="add" :before-remove="handleBeforeRemove" :before-upload="handleBeforeUpload" :on-success="handleOnSuccess" :on-error="handleOnError" :on-change="handleOnChange">
+                    <el-button type="primary" plain slot="trigger">员工导入</el-button>
+                </el-upload>
+                <div slot="footer" class="dialog-footer">
+                    <el-button type="primary" @click="">确 定</el-button>
+                </div>
+            </el-dialog>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['党建','党费缴纳'],
+                search_form:{
+                    name:'',
+                },
+                tableData:[
+                    {
+                        date:'2018-08至2018-10',
+                        organize:'中山门',
+                        name:'李彤',
+                        money:'1000',
+                        way:'wx',
+                        time:'2018-09-03 15:47',
+                        status:'已缴纳',
+                    },
+                    {
+                        date:'2018-08至2018-10',
+                        organize:'中山门',
+                        name:'李彤',
+                        money:'1000',
+                        way:'wx',
+                        time:'2018-09-03 15:47',
+                        status:'未缴纳',
+                    },
+                    {
+                        date:'2018-08至2018-10',
+                        organize:'中山门',
+                        name:'李彤',
+                        money:'1000',
+                        way:'wx',
+                        time:'2018-09-03 15:47',
+                        status:'已缴纳',
+                    }
+                ],
+                currentPage:1,
+                dialogFormVisible:false,
+                file_list:[],
+            },
+            created:function(){
+                var that = this;
+                document.getElementsByTagName('title')[0].innerHTML = '党费缴纳';
+            },
+            methods:{
+                handleSizeChange:function(){
+
+                },
+                handleCurrentChange:function(){
+
+                },
+                dialogOpen:function(){
+                    var that = this;
+                    that.dialogFormVisible = true;
+                },
+                handleBeforeRemove:function(){
+
+                },
+                handleBeforeUpload:function(){
+
+                },
+                handleOnSuccess:function(){
+
+                },
+                handleOnError:function(){
+
+                },
+                handleOnChange:function(){
+
+                }
+            }
+        });
+    </script>
+</body>
+</html>

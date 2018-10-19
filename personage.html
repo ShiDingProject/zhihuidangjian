@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>文章管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style type="text/css">
+        .message-list{
+            padding-bottom: 15px;
+            margin-bottom:20px;
+            line-height: 24px;
+            padding-left: 16px;
+            border-bottom: 1px dashed #ddd;
+        }
+        .message-list span{
+            display: inline-block;
+            padding-right: 20px;
+        }
+        .message-listIcon{
+            text-align: center;
+            font-size: 14px;
+            color: #7a160e;
+        }
+        .message-list div{
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="3-7" :breadcrumb="breadcrumb">
+                <div class="inner">
+                    <div class="inner-title">
+                        <span class="inner-title-span">人物管理</span>
+                        <div class="wid-top-btnBox">
+                            <el-button @click="dialogOpen">添加人物</el-button>
+                        </div>
+                    </div>
+                    <div class="page-content">
+                        <el-table :data="tableData" style="width: 100%;margin-bottom: 28px;">
+                            <el-table-column prop="name" label="名称" width="300"></el-table-column>
+                            <el-table-column label="生卒日期">
+                                <template slot-scope="scope">
+                                    <span>{{ scope.row.start_date }} 至 {{ scope.row.end_date }}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column width="360" label="操作">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" @click="getMessageList(scope)">查看留言</el-button>
+                                    <el-button size="mini" type="info">编辑</el-button>
+                                    <el-button size="mini" style="background: #2a3345;color: #fff;" @click="showMan(scope)">上架</el-button>
+                                    <el-button size="mini" type="danger" @click="delMan(scope)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <el-pagination background @current-change="handleCurrentChange" :current-page.sync="currentPage" :page-size="10" layout="prev, pager, next, jumper" :total="100"></el-pagination>
+                    </div>
+                </div>
+                <!-- 添加、编辑 人物 结婚两方家人-->
+                <el-dialog title="添加人物" :visible.sync="dialogFormVisible" style="min-width: 1600px;">
+                    <el-form :model="dialog_form" ref="dialog_form" label-width="120px">
+                        <el-row :gutter="20" class="bannerlist-bg" style="margin:0px 10px 20px 10px;">
+                        <el-col :span="22">
+                            <el-form-item label="人物姓名：" prop="name" :rules="{required:true,message:'请输入人物姓名',trigger:'blur'}">
+                                <el-input v-model="dialog_form.name" auto-complete="off" placeholder="请输入人物姓名. . ."></el-input>
+                            </el-form-item>
+                            <el-form-item label="生卒日期：" prop="date" :rules="{required:true,message:'请输入生卒日期',trigger:'blur'}">
+                                <el-date-picker v-model="dialog_form.date" type="datetimerange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"></el-date-picker>
+                            </el-form-item>
+                             <el-form-item label="人物积分：" prop="point" :rules="{required:true,message:'请输入人物积分',trigger:'blur'}">
+                                <el-input v-model="dialog_form.point" auto-complete="off" placeholder="请输入人物积分. . ."></el-input>
+                            </el-form-item>
+                            <el-form-item label="人物简介：" prop="summary" :rules="{required:true,message:'请输入人物简介',trigger:'blur'}">
+                                <el-input type="textarea" v-model="dialog_form.summary" placeholder="请输入人物简介. . ."></el-input>
+                            </el-form-item>
+                            <el-form-item label="生平介绍：" prop="introduction" :rules="{required:true,message:'请输入生平介绍',trigger:'blur'}">
+                                <el-input type="textarea" v-model="dialog_form.introduction" placeholder="请输入生平介绍. . ."></el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                    </el-form>
+                    <div slot="footer" class="dialog-footer">
+                        <el-button @click="dialogOff">取 消</el-button>
+                        <el-button type="primary" @click="submitDialogForm">确 定</el-button>
+                    </div>
+                </el-dialog> 
+                <!-- 留言 列表 -->
+                <el-dialog title="毛泽东" :visible.sync="dialogTableVisible" style="min-width: 1600px;">
+
+                    <el-row class="message-list" v-for="item,index in messageList">
+                      <el-col :span="20"><span>{{ item.name }}</span><span>{{ item.date }}</span></el-col>
+                      <el-col :span="2" :offset="2" class="message-listIcon"><i class="el-icon-error" style="cursor: pointer;"></i></el-col>
+                      <el-col :span="20"><div>{{ item.content }}</div></el-col>
+                    </el-row>
+
+
+
+
+                   <el-pagination style="padding-top: 20px;" background @current-change="handleCurrentChanger" :current-page.sync="currentPager" :page-size="10" layout="prev, pager, next, jumper" :total="100"></el-pagination>
+                </el-dialog> 
+            </v-container>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/ckeditor/ckeditor.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['党建','党史人物'],
+                tableData: [
+                    {
+                        id: '1',
+                        name: '毛泽东',
+                        start_date: '1893-12-26',
+                        end_date: '1976-09-09'
+                    }, {
+                        id: '2',
+                        name: '邓小平',
+                        start_date: '1904-08-22',
+                        end_date: '1997-02-19'
+                    }, {
+                        id: '3',
+                        name: '周恩来',
+                        start_date: '1898-03-05',
+                        end_date: '1976-01-08'
+                    }, {
+                        id: '4',
+                        name: '陈云',
+                        start_date: '1905-01-01',
+                        end_date: '1995-04-10'
+                    }
+                ],
+                currentPage: 4,// 列表 分页
+                currentPager: 5,// 留言列表 分页
+				dialog_form: {
+					name:'',
+                    date:'',
+                    point:'',
+                    summary:'',
+                    introduction:''
+				},
+				dialogFormVisible: false,
+                dialogTableVisible: false,
+                messageList:[
+                    {
+                        id:'1',
+                        name:'张三',
+                        date:'2018-6-14 16:25',
+                        content:'福偶去未缴费和武器维护费解耦我画风完全配合范玮琪发货，偶尔发及配件完全父亲节，弄完企鹅和覅偶文化服务请回复jk-jhwfqe，ewfu9w8uqfqeyhfjkiuj89ewhfq么偶if结尾曲if用和䦹！！！'
+                    },
+                    {
+                        id:'2',
+                        name:'李四',
+                        date:'2018-6-14 16:25',
+                        content:'福偶去未缴费和武器维护费解耦我画风完全配合范玮琪发货，偶尔发及配件完全父！！'
+                    },
+                    {
+                        id:'3',
+                        name:'王五',
+                        date:'2018-6-14 16:25',
+                        content:'福偶去未缴费和武器维护费解！'
+                    },
+                    {
+                        id:'4',
+                        name:'赵六',
+                        date:'2018-6-14 16:25',
+                        content:'福偶去未缴费和武器维护费解耦我画风完全配合范玮琪发货，偶尔发及配件完全父亲节，弄完企鹅和覅偶文化服务请回复jk-jhwfqe，ewfu9w8uqfqeyhfjkiuj89ewhfq么偶if结尾曲if用和䦹！速度反而格格二锅头企鹅无关！！'
+                    },
+                    {
+                        id:'5',
+                        name:'王琼',
+                        date:'2018-6-14 16:25',
+                        content:'福偶去未缴费和武器维护！'
+                    }
+                ],
+            },
+            methods:{
+                // 列表 分页
+                handleCurrentChange(val) {
+                    console.log('当前页:'+val);
+                },
+                // 留言列表 分页
+                handleCurrentChanger(val) {
+                    console.log('当前页:'+val);
+                },
+                //获取 留言 列表
+                getMessageList:function(scope){
+                    var that = this;
+                    that.dialogTableVisible=true;
+                },
+                // 模态框 展开
+                dialogOpen:function(){
+                    var that = this;
+                    that.dialogFormVisible = true;
+                },
+                // 模态框 收起
+                dialogOff:function(){
+                    var that = this;
+                    that.dialogFormVisible = false;
+                   
+                },
+                //删除
+                delMan:function(scope){
+                    this.$confirm('此操作将永久删除该人物, 是否继续?', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'
+                    }).then(() => {
+                        this.$message({type: 'success',message: '删除成功!'});
+                    }).catch(() => {
+                        this.$message({type: 'info',message: '已取消删除'});
+                    });
+                },
+                //上架
+                showMan:function(scope){
+                    this.$confirm('此操作将上架该人物, 是否继续?', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'
+                    }).then(() => {
+                        this.$message({type: 'success',message: '上架成功!'});
+                    }).catch(() => {
+                        this.$message({type: 'info',message: '已取消上架'});
+                    });
+                },
+              
+              
+                // 提交 表单
+                submitDialogForm:function(){
+                    var that = this;
+                    that.$refs.dialog_form.validate(function(valid){
+                        if (valid) {
+                           
+                        }
+                    });
+                }
+            }
+        })
+    </script>
+</body>
+</html>

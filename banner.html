@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>轮播图管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-collapse-item{
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="2-1" :breadcrumb="breadcrumb">
+                <div class="inner">
+                    <div class="inner-title">
+                        <span class="inner-title-span">轮播图列表</span>
+                        <div class="wid-top-btnBox">
+                            <el-button v-if="order_switch == false" @click="sortBanner">更新排序</el-button>
+                            <el-button v-else="order_switch == true" @click="sortBanner">确认排序</el-button>
+                            <el-button @click="dialogOpen('add')">添加轮播图</el-button>
+                        </div>
+                    </div>
+                    <div class="page-content">
+                        <el-table :data="banner_list" style="width: 100%" highlight-current-row>
+                            <el-table-column label="排序" width="250">
+                                <template slot-scope="scope">
+                                    <el-input-number v-model.number="scope.row.banner_order" controls-position="right" :min="0" placeholder="请输入内容" v-if="order_switch == true"></el-input-number>
+                                    <!-- <el-input v-model.number="scope.row.banner_order" placeholder="请输入内容" v-if="order_switch == true"></el-input> -->
+                                    <p v-else="order_switch == false">{{scope.row.banner_order}}</p>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="categorys_id" label="类型" :formatter="formatterCategorys"></el-table-column>
+                            <el-table-column prop="article_title" label="标题"></el-table-column>
+                            <el-table-column prop="banner_position" label="位置" :formatter="formatterPosition" sortable width="200"></el-table-column>
+                            <el-table-column prop="handle" label="操作" width="120">
+                                <template slot-scope="scope">
+                                    <el-button type="text" @click="dialogOpen('edit',scope.row.id)">编辑</el-button>
+                                    <el-button type="text" @click="delBanner(scope.row.id)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+            </v-container>
+            <keep-alive>
+                <el-dialog title="新增轮播图片：" :visible.sync="dialogFormVisible" width="50%" style="min-width: 800px;" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+                    <el-form :model="dialog_form" ref="dialog_form" label-width="140px">
+                        <el-form-item label="选择位置：" prop="banner_position" :rules="{required:true,message:'请选择位置',trigger:'change'}">
+                            <el-select v-model="dialog_form.banner_position" placeholder="请选择位置" @change="selectBannerPosition">
+                                <el-option label="首页" value="1"></el-option>
+                                <el-option label="党建E支部" value="2"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="所属类别：" prop="categorys_id" :rules="{required:true,message:'请选择所属类别',trigger:'change'}">
+                            <el-select v-model="dialog_form.categorys_id" placeholder="请选择所属类别" @change="selectCategorysId">
+                                <el-option :label="item.category_name" :value="item.id" v-for="item of type_opt" :key="item.id"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="选择文章：" prop="banner_article_id" :rules="{required:true,message:'请选择文章',trigger:'change'}">
+                            <el-table ref="articleTable" border :data="article_list" highlight-current-row @current-change="handleTableSelect" style="margin-bottom: 10px;">
+                                <el-table-column type="index" width="50"></el-table-column>
+                                <el-table-column prop="article_title" label="文章标题"></el-table-column>
+                                <el-table-column prop="article_pub_time" label="发布时间"></el-table-column>
+                                <el-table-column prop="article_istop" label="置顶状态" :formatter="formatterTop"></el-table-column>
+                                <el-table-column prop="article_isdisplay" label="上架状态" :formatter="formatterDisplay"></el-table-column>
+                            </el-table>
+                            <el-pagination background small @current-change="getArticleList(page),dialog_form.banner_article_id = ''" :current-page.sync="page" :page-size="limit" layout="prev,pager,next" :total="total"></el-pagination>
+                        </el-form-item>
+                        <el-form-item  label="轮播图片：" :rules="{required:true,message:'仅为展示“*”号',trigger:'change'}">
+                            <el-upload class="upload-demo" :before-remove="beforeRemove" multiple :limit="1"  :on-exceed="handleExceed" :file-list="dialog_form.fileList" action="#" :auto-upload="false" ref="upload" list-type="picture">
+                                <el-button size="small" type="primary">点击选择图片</el-button>
+                                <div slot="tip" class="el-upload__tip">请选择 1 张轮播上传，且只能上传jpg/png文件</div>
+                            </el-upload>
+                        </el-form-item>
+                    </el-form>
+                    <div slot="footer" class="dialog-footer">
+                        <el-button @click="dialogClose">取 消</el-button>
+                        <el-button type="primary" @click="submitDialogForm('add')" v-if="dialog_type == 'add'" :disabled="ajax_lock">确 定(添加)</el-button>
+                        <el-button type="primary" @click="submitDialogForm('edit')" v-if="dialog_type == 'edit'" :disabled="ajax_lock">确 定(编辑)</el-button>
+                    </div>
+                </el-dialog>
+            </keep-alive>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['新闻','轮播图管理'],
+
+                banner_list:[],
+                type_opt_for_table:[],
+				dialog_form: {
+                    id:'',
+                    banner_position:'',
+                    categorys_id:'',
+                    banner_article_id:'',
+					fileList:[],
+				},
+                type_opt:[],
+                article_list:[],
+                limit:10,
+                page:1,
+                total:0,
+
+				dialogFormVisible: false,
+                dialog_type:'',
+                activeName: 0,
+                
+                order_switch:false, //排序开关
+
+                ajax_lock:false //请求锁
+            },
+            created:function(){
+                var that = this;
+                that.getArticleCategory('');
+                that.getBannerList();
+            },
+            methods:{
+                // 获取轮播图列表
+                getBannerList:function(){
+                    var that = this;
+                    api.post('/admin/banner/getBannerList',{},function(res){
+                        console.log('getBannerList',res);
+                        that.banner_list = res.data.data;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取文章分类列表
+                getArticleCategory:function(banner_position){
+                    var that = this;
+                    api.post('/admin/article/getCategory',{
+                        pid:banner_position
+                    },function(res){
+                        console.log('getArticleCategory',res);
+                        var data = JSON.stringify(res.data.data);
+                        if (banner_position == '') {
+                            that.type_opt_for_table = JSON.parse(data);
+                        }else{
+                            that.type_opt = JSON.parse(data);
+                        }
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取文章列表
+                getArticleList:function(page){
+                    var that = this;
+                    api.post('/admin/article/getArticleList',{
+                        cid:that.dialog_form.categorys_id,
+                        limit:that.limit,
+                        page:page
+                    },function(res){
+                        console.log('getArticleList',res);
+                        that.article_list = res.data.data.data;
+                        that.total = res.data.data.total;
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                getArticleListForSelect:function(page,id,banner_article_id){
+                    var that = this;
+                    // console.log('page:',page,'categorys_id:',id,'banner_article_id:',banner_article_id);
+                    api.post('/admin/article/getArticleList',{
+                        cid:id,
+                        limit:that.limit,
+                        page:page
+                    },function(res){
+                        // console.log('getArticleListForSelect',res);
+                        if (page < Math.ceil(res.data.data.total/res.data.data.per_page)) {
+                            for (var i = 0; i < res.data.data.data.length; i++) {
+                                if (res.data.data.data[i].id == banner_article_id) {
+                                    that.article_list = res.data.data.data;
+                                    that.$refs.articleTable.setCurrentRow(res.data.data.data[i]);
+                                    that.total = res.data.data.total;
+                                    that.page = page;
+                                }else{
+                                    that.getArticleListForSelect(page + 1,id,banner_article_id);
+                                }
+                            }
+                        }else if (page == Math.ceil(res.data.data.total/res.data.data.per_page)) {
+                            for (var i = 0; i < res.data.data.data.length; i++) {
+                                if (res.data.data.data[i].id == banner_article_id) {
+                                    that.article_list = res.data.data.data;
+                                    that.$refs.articleTable.setCurrentRow(res.data.data.data[i]);
+                                    that.total = res.data.data.total;
+                                    that.page = page;
+                                }else{
+                                    if (i == res.data.data.data.length) {
+                                        that.page = 1;
+                                        that.getArticleList(that.page);
+                                        that.$message.error('无可以匹配的文章');    
+                                    }
+                                }
+                            }
+                        }
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 获取轮播详情
+                getBannerDetail:function(id){
+                    var that = this;
+                    api.post('/admin/banner/banner',{
+                        id:id
+                    },function(res){
+                        console.log('getBannerDetail',res);
+                        that.getArticleCategory(res.data.data.banner_position);
+                        that.dialog_form.id = res.data.data.id;
+                        that.dialog_form.banner_position = res.data.data.banner_position.toString();
+                        that.dialog_form.categorys_id = res.data.data.categorys_id;
+                        that.getArticleListForSelect(that.page,that.dialog_form.categorys_id,res.data.data.banner_article_id);
+                        that.dialog_form.fileList.push({
+                            name:'upload-img1',
+                            url:res.data.data.banner_picture
+                        }) 
+                    },function(err){
+                        console.log(err);
+                    });
+                },
+                // 格式化文章分类
+                formatterCategorys:function(row,column){
+                    var that = this;
+                    for (var i = 0; i < that.type_opt_for_table.length; i++) {
+                        if (that.type_opt_for_table[i].id == row.categorys_id) {
+                            return that.type_opt_for_table[i].category_name;
+                        }
+                    }
+                },
+                // 格式化文章位置
+                formatterPosition:function(row,column){
+                    if (row.banner_position == 1) {
+                        return '首页';
+                    }else if (row.banner_position == 2) {
+                        return '党建E支部';
+                    }
+                },
+                sortBanner:function(){
+                    var that = this;
+                    if (that.order_switch == false) {
+                        that.order_switch = true;
+                    }else{
+                        that.order_switch = false;
+                        console.log(that.banner_list);
+                        var banner_order_arr = [];
+                        for (var i = 0; i < that.banner_list.length; i++) {
+                            banner_order_arr.push({
+                                id:that.banner_list[i].id,
+                                banner_order:that.banner_list[i].banner_order
+                            });
+                        }
+                        api.post('/admin/banner/sort',{
+                            order:JSON.stringify(banner_order_arr)
+                        },function(res){
+                            console.log(res);
+                            if (res.data.code == 1001) {
+                                that.$message.success('排序成功');
+                                that.getBannerList();
+                            }else if (res.data.code == 1002) {
+                                that.$message.error('排序失败');
+                            }
+                        },function(err){
+                            console.log(err);
+                        });
+                    }
+                },
+                //删除
+                delBanner:function(id){
+                    var that = this;
+                    that.$confirm('此操作将永久删除该轮播图片, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        callback:function(action){
+                            if (action == 'confirm') {
+                                api.post('/admin/banner/delect',{
+                                    id:id
+                                },function(res){
+                                    console.log(res);
+                                    if (res.data.code == 1003) {
+                                        that.getBannerList(that.page);
+                                        that.$message({type: 'success',message: '删除成功!'});
+                                    }else{
+
+                                    }
+                                },function(err){
+                                    console.log(err);
+                                });
+                            }else if (action == 'cancel') {
+                                that.$message({type: 'info',message: '已取消删除'});
+                            }
+                        }
+                    });
+                },
+                // 模态框 展开
+                dialogOpen:function(type,id){
+                    var that = this;
+                    if (type == 'add') {
+                        that.dialog_type = 'add';
+                        that.dialogFormVisible = true;
+                    }else if (type == 'edit') {
+                        that.dialog_type = 'edit';
+                        that.dialogFormVisible = true;
+                        // console.log(id);
+                        that.getBannerDetail(id);
+                    }
+                },
+                // 模态框 收起
+                dialogClose:function(){
+                    var that = this;
+                    that.dialogFormVisible = false;
+                    
+                    that.dialog_form.id = '';
+                    that.dialog_form.banner_position = '';
+                    that.dialog_form.categorys_id = '';
+                    that.dialog_form.banner_article_id = '';
+                    that.dialog_form.fileList = [];
+                    
+                    that.type_opt = [];
+                    that.article_list = [];
+
+                    that.$refs.dialog_form.resetFields();
+
+                    that.page = 1;
+                    that.total = 0;
+
+                    // var timer = setInterval(function(){
+                    //     if(that.$refs.dialog_form){
+                    //         that.$refs.dialog_form.clearValidate();
+                    //         clearInterval(timer);
+                    //     }
+                    // },20);
+                },
+                // 格式化列表 置顶
+                formatterTop:function(row,column){
+                    if (row.article_istop == 0) {
+                        return '未置顶';
+                    }else if (row.article_istop == 1) {
+                        return '已置顶';
+                    }
+                },
+                // 格式化列表 上架
+                formatterDisplay:function(row,column){
+                    if (row.article_isdisplay == 0) {
+                        return '已上架';
+                    }else if (row.article_isdisplay == 1) {
+                        return '已下架';
+                    }
+                },
+                // 选择轮播图位置
+                selectBannerPosition:function(){
+                    var that = this;
+                    that.dialog_form.categorys_id = '';
+                    that.dialog_form.banner_article_id = '';
+                    that.article_list = [];
+                    that.getArticleCategory(that.dialog_form.banner_position);
+                },
+                // 选择文章
+                selectCategorysId:function(){
+                    var that = this;
+                    that.dialog_form.banner_article_id = '';
+                    that.article_list = [];
+                    that.page = 1;
+                    that.getArticleList(that.page);
+                },
+                // 选择轮播图所在的文章
+                handleTableSelect:function(val){
+                    // console.log(val);
+                    var that = this;
+                    if (val != null) {
+                        that.dialog_form.banner_article_id = val.id;    
+                    }
+                },
+                // 上传的图片 超出limit
+                handleExceed:function(files, fileList) {
+                    var that = this;
+                    that.$message.warning('当前最多可上传1个图片文件');
+                },
+                // 上传的图片 删除
+                beforeRemove:function(file, fileList) {
+                    var that = this;
+                    return that.$confirm('确定移除'+file.name);
+                },
+                // 提交 表单
+                submitDialogForm:function(type){
+                    var that = this;
+                    that.$refs.dialog_form.validate(function(valid){
+                        if (valid) {
+                            if(that.$refs.upload){
+                                that.dialog_form.fileList=that.$refs.upload.uploadFiles;
+                            }
+                            if(that.dialog_form.fileList.length == 0){
+                                that.$message.error('请选择 1 张轮播上传');
+                            }else{
+                                console.log('dialog_form',that.dialog_form);
+                                if (type == 'add') {
+                                    that.saveBanner(type);
+                                }else if (type == 'edit') {
+                                    that.saveBanner(type);
+                                }
+                            }
+                        }
+                    });
+                },
+                // 保存和编辑轮播
+                saveBanner:function(type){
+                    var that = this;
+                    that.ajax_lock = true;
+                    var formdata = new FormData();
+                    formdata.append('banner_position',that.dialog_form.banner_position);
+                    formdata.append('categorys_id',that.dialog_form.categorys_id);
+                    formdata.append('banner_article_id',that.dialog_form.banner_article_id);
+                    if (type == 'add') {
+                        formdata.append('thumb',that.dialog_form.fileList[0].raw);
+                        api.post('/admin/banner/saveBanner',formdata,function(res){
+                            console.log(res);
+                            if (res.data.code == 1001) {
+                                that.dialogClose();
+                                that.getBannerList();
+                                that.ajax_lock = false;
+                            }else{
+                                that.ajax_lock = false;
+                            }
+                        },function(err){
+                            console.log(err);
+                        });
+                    }else if (type == 'edit') {
+                        console.log(that.dialog_form.fileList);
+                        if (that.dialog_form.fileList[0].raw != undefined) {
+                            formdata.append('thumb',that.dialog_form.fileList[0].raw);
+                        }
+                        formdata.append('id',that.dialog_form.id);
+                        api.post('/admin/banner/saveBanner',formdata,function(res){
+                            console.log(res);
+                            if (res.data.code == 1001) {
+                                that.dialogClose();
+                                that.getBannerList();
+                                that.ajax_lock = false;
+                            }else if (res.data.code == 1002) {
+                                that.ajax_lock = false;
+                            }
+                        },function(err){
+                            console.log(errs);
+                        });
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+@import url(common/normalize.css);
+@import url(common/common.css);
+@import url(common/element.css);
+
+@import url(component/container.css);
+
+.inner{
+    width: 100%;
+    height: 100%;
+    /* padding: 80px 0 0; */
+    position: relative;
+    box-sizing: border-box;
+}
+.inner-title{
+    /* position: absolute;
+    top: 0;
+    left: 0; */
+    width: 100%;
+    height: 80px;
+    box-sizing: border-box;
+    border-bottom: 1px solid #d8e1eb;
+    position: relative;
+}
+.inner-title-span{
+    display: inline-block;
+    height: 80px;
+    line-height: 80px;
+    vertical-align: middle;
+}
+.page-content{
+    padding:20px 0 0 0;
+    position: relative;
+    box-sizing: border-box;
+}
+.wid-top-btnBox{
+    position: absolute;
+    right: 20px;
+    top: 20px;
+}
+.dialog-left{
+    width: 100%;
+    overflow: auto;
+    box-sizing: border-box;
+    padding-right: 20px;
+}
+.dialog-right{
+    padding-left: 20px;
+}
+.nav-left{
+    border-right: 1px solid #d8e1eb;
+    width: 100%;
+    overflow: auto;
+    box-sizing: border-box;
+    padding-right: 20px;
+}
+.el-tree {  
+    min-width: 100%;
+    display: inline-block !important;  
+}
+.pagination{
+    padding: 10px 0;
+}
+.p-padding{
+    padding: 10px 0;
+}

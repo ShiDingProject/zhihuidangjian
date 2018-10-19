@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>登录</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+    .login-bg {
+		width: 100%;
+		height: 100%;
+		background: #2a3345;
+	}
+
+	.login-form {
+		width: 500px;
+		padding-top: 100px;
+		margin: 0px auto;
+	}
+
+	.login-tit {
+		width: 100%;
+		height: 50px;
+		margin-bottom: 28px;
+	}
+
+	.login-tit span {
+		color: #fff;
+		font-size: 36px;
+		display: block;
+		float: left;
+		margin-right: 12px;
+		line-height: 50px;
+		margin-left: 88px;
+	}
+
+	.login-tit b {
+		color: #53d192;
+		font-size: 36px;
+		display: block;
+		float: left;
+		margin-right: 5px;
+		line-height: 50px;
+	}
+
+	.login-tit i {
+		color: #53d192;
+		font-size: 40px;
+		display: block;
+		float: left;
+		line-height: 50px;
+	}
+
+	.login-inp {
+		width: 100%;
+		border-radius: 6px;
+		margin-bottom: 36px;
+	}
+
+	.login-inp input {
+		width: 100%;
+		height: 40px;
+		display: block;
+		border: 0px solid #fff;
+		border-bottom: 1px solid #ddd;
+		line-height: 40px;
+		padding: 0px;
+		font-size: 14px;
+		padding: 0px 10px;
+		outline: none;
+		letter-spacing: 2px;
+	}
+
+	.login-btn {
+		width: 100%;
+		height: 40px;
+		background: #53d192;
+		color: #fff;
+		line-height: 40px;
+		border-radius: 6px;
+		text-align: center;
+		letter-spacing: 8px;
+		font-size: 16px;
+		cursor: pointer;
+	}
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <div class="login-bg">
+                <el-form class="login-form" :model="loginForm" :rules="rules" ref="loginForm" label-width="0px">
+                    <div class="login-tit clearfix">
+                        <span>智慧城市</span>
+                        <b>云平台</b>
+                        <i class="el-icon-share"></i>
+                    </div>
+                    <div class="login-inp">
+                        <el-form-item prop="name">
+                            <el-input type="text" v-model="loginForm.name"
+                                    placeholder="请输入您的账号..."></el-input>
+                        </el-form-item>
+                        <el-form-item prop="pwd">
+                            <el-input type="password" v-model="loginForm.pwd"
+                                    placeholder="请输入您的密码..."></el-input>
+                        </el-form-item>
+                    </div>
+                    <div class="login-btn" @click="submitForm('loginForm')">登录</div>
+                </el-form>
+            </div>
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script>
+            var vm = new Vue({
+                el: "#main",
+                data:{
+                    loginForm: {
+                        name: '',
+                        pwd: ''
+                    },
+                    rules: {
+                        name: [
+                            {required: true, message: '请输入您的账号~', trigger: 'blur'},
+                            {min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur'}
+                        ],
+                        pwd: [
+                            {required: true, message: '请输入您的密码~', trigger: 'blur'},
+                            {min: 1, max: 10, message: '长度在 3 到 10 个字符', trigger: 'blur'}
+                        ],
+                    }
+                },
+                methods: {
+                    submitForm:function(){
+                        this.$refs[formName].validate((valid) => {
+                            if (valid) {
+                                this.$router.push({path: '/loginPart'});
+                            } else {
+                                console.log('error submit!!');
+                                return false;
+                            }
+                        });
+                    },
+                }
+            });
+        </script>
+</body>
+</html>

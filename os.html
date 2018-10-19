@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>系统图片</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+        .el-badge__content{
+            top: 10px !important; 
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <v-container href_now="7-3" :breadcrumb="breadcrumb">
+                <div class="inner-title">
+                    <span class="inner-title-span">系统图片</span>
+                </div>
+                <div style="margin: 30px">
+                    <el-form label-width="180px" class="demo-table-expand">
+                        <el-form-item label="党课学习：">
+                                <el-button type="primary">选择图片</el-button>
+                                <el-button type="success">保存</el-button>
+                                <img src="./assets/img/bg2.jpg" style="width: 300px; height: 178px; display: block; margin-top: 30px;">
+                        </el-form-item>
+                        <el-form-item label="政务：">
+                                <el-button type="primary">选择图片</el-button>
+                                <el-button type="success">保存</el-button>
+                                <img src="./assets/img/bg2.jpg" style="width: 300px; height: 178px; display: block; margin-top: 30px;">
+                        </el-form-item>
+                    </el-form>
+                </div>
+                
+                    
+            </v-container>  
+           
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/component/container.js"></script>
+    <script src="assets/js/ckeditor/ckeditor.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/mock.js"></script>
+    <script>
+        var vm = new Vue({
+            el:'#main',
+            data:{
+                breadcrumb:['系统设置','系统图片'],
+            },
+            methods:{            
+            }
+        });
+    </script>
+</body>
+</html>

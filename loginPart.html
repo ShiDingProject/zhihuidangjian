@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>登录</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/css/index.css"/>
+    <style>
+    .login-bg {
+		width: 100%;
+		height: 100%;
+		background: #2a3345;
+	}
+
+	.part-list {
+		padding-top: 100px;
+		width: 1280px;
+		margin: 0px auto;
+	}
+
+	.part-tit {
+		text-align: left;
+		width: 100%;
+		padding: 0px 0px 0px 480px;
+		color: #fff;
+		font-size: 28px;
+		line-height: 80px;
+		margin-bottom: 120px;
+		position: relative;
+	}
+
+	.part-titImg {
+		position: absolute;
+		left: 370px;
+		top: 2px;
+	}
+
+	.part-list .part-btn {
+		width: 350px;
+		height: 128px;
+		margin-left: 50px;
+		font-size: 22px;
+		letter-spacing: 2px;
+	}
+    </style>
+</head>
+<body>
+    <div id="main">
+        <template>
+            <div class="login-bg">
+                <div class="part-list">
+                    <div class="part-tit">请选择您准备操作的模块~
+                        <div class="part-titImg">
+                            <i style="font-size: 60px;" class="el-icon-setting"></i>
+                            <i style="font-size: 28px;" class="el-icon-setting"></i>
+                        </div>
+                    </div>
+                    <el-row>
+                        <el-button class="part-btn" type="success"
+                                style="background: #53d192;border:1px solid #53d192;"
+                                @click="goPart('/newsBanner')">APP
+                        </el-button>
+                        <el-button class="part-btn" type="info" @click="goPart('/newsBanner')">PC官网</el-button>
+                        <el-button class="part-btn" type="danger" @click="goPart('/newsBanner')">终端大屏</el-button>
+                    </el-row>
+                </div>
+        
+            </div>
+        
+        </template>
+    </div>
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script>
+            var vm = new Vue({
+                el: "#main",
+                methods: {
+                    goPart: function (e) {
+                        this.$router.push({path: e});
+                    }
+                }
+            });
+        </script>
+</body>
+</html>
